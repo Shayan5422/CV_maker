@@ -1,43 +1,34 @@
-// src/app/services/resume.service.ts
+// src/app/components/services/resume.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { Resume } from '../models/resume.model';
-import { AuthService } from './auth.service';
+import { Observable } from 'rxjs';
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root'
 })
 export class ResumeService {
-    private apiUrl = 'http://127.0.0.1:8000/resumes';
+  private apiUrl = 'http://127.0.0.1:8000/resumes';
 
-    constructor(
-        private http: HttpClient,
-        private authService: AuthService
-    ) { }
+  constructor(private http: HttpClient) {}
 
-    private getHeaders(): HttpHeaders {
-        const token = this.authService.currentUserValue.access_token;
-        return new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    }
+  getResumes(): Observable<Resume[]> {
+    return this.http.get<Resume[]>(this.apiUrl);
+  }
 
-    getResumes(): Observable<Resume[]> {
-        return this.http.get<Resume[]>(this.apiUrl, { headers: this.getHeaders() });
-    }
+  getResume(id: number): Observable<Resume> {
+    return this.http.get<Resume>(`${this.apiUrl}/${id}`);
+  }
 
-    getResume(id: number): Observable<Resume> {
-        return this.http.get<Resume>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
-    }
+  createResume(resume: Resume): Observable<Resume> {
+    return this.http.post<Resume>(this.apiUrl, resume);
+  }
 
-    createResume(resume: Resume): Observable<Resume> {
-        return this.http.post<Resume>(this.apiUrl, resume, { headers: this.getHeaders() });
-    }
+  updateResume(id: number, resume: Resume): Observable<Resume> {
+    return this.http.put<Resume>(`${this.apiUrl}/${id}`, resume);
+  }
 
-    updateResume(id: number, resume: Resume): Observable<Resume> {
-        return this.http.put<Resume>(`${this.apiUrl}/${id}`, resume, { headers: this.getHeaders() });
-    }
-
-    deleteResume(id: number): Observable<any> {
-        return this.http.delete(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
-    }
+  deleteResume(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  }
 }
