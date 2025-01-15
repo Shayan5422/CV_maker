@@ -109,7 +109,7 @@ export class ResumeFormComponent implements OnInit {
       this.loading = true;
       this.resumeService.getResume(this.resumeId).subscribe({
         next: (resume: any) => {
-          // Patch basic fields
+          // Patch the basic fields first
           this.resumeForm.patchValue({
             title: resume.title,
             full_name: resume.full_name,
@@ -118,32 +118,53 @@ export class ResumeFormComponent implements OnInit {
             summary: resume.summary,
             skills: resume.skills
           });
-          // Update experience array if available and ensure it is an array.
-          if (resume.experience && Array.isArray(resume.experience)) {
-            this.experienceArray.clear();
-            resume.experience.forEach((exp: any) => {
-              this.experienceArray.push(this.formBuilder.group({
-                company: exp.company || '',
-                position: exp.position || '',
-                start_date: exp.start_date || '',
-                end_date: exp.end_date || '',
-                description: exp.description || ''
-              }));
-            });
+  
+          // Parse and update the experience array
+          if (resume.experience) {
+            try {
+              const experienceArray = JSON.parse(resume.experience);
+              if (Array.isArray(experienceArray)) {
+                this.experienceArray.clear();
+                experienceArray.forEach((exp: any) => {
+                  this.experienceArray.push(
+                    this.formBuilder.group({
+                      company: exp.company || '',
+                      position: exp.position || '',
+                      start_date: exp.start_date || '',
+                      end_date: exp.end_date || '',
+                      description: exp.description || ''
+                    })
+                  );
+                });
+              }
+            } catch (e) {
+              console.error('Failed to parse experience data:', e);
+            }
           }
-          // Update education array similarly.
-          if (resume.education && Array.isArray(resume.education)) {
-            this.educationArray.clear();
-            resume.education.forEach((edu: any) => {
-              this.educationArray.push(this.formBuilder.group({
-                institution: edu.institution || '',
-                degree: edu.degree || '',
-                start_date: edu.start_date || '',
-                end_date: edu.end_date || '',
-                description: edu.description || ''
-              }));
-            });
+  
+          // Parse and update the education array
+          if (resume.education) {
+            try {
+              const educationArray = JSON.parse(resume.education);
+              if (Array.isArray(educationArray)) {
+                this.educationArray.clear();
+                educationArray.forEach((edu: any) => {
+                  this.educationArray.push(
+                    this.formBuilder.group({
+                      institution: edu.institution || '',
+                      degree: edu.degree || '',
+                      start_date: edu.start_date || '',
+                      end_date: edu.end_date || '',
+                      description: edu.description || ''
+                    })
+                  );
+                });
+              }
+            } catch (e) {
+              console.error('Failed to parse education data:', e);
+            }
           }
+  
           this.loading = false;
         },
         error: error => {
@@ -153,6 +174,7 @@ export class ResumeFormComponent implements OnInit {
       });
     }
   }
+  
 
   onSubmit(): void {
     this.submitted = true;
@@ -161,8 +183,8 @@ export class ResumeFormComponent implements OnInit {
     }
     this.loading = true;
     const resumeData = this.resumeForm.value;
-  
-    // Convert experience and education arrays to strings
+    
+    // Convert the FormArrays into JSON strings before sending.
     resumeData.experience = JSON.stringify(resumeData.experience);
     resumeData.education = JSON.stringify(resumeData.education);
   
@@ -184,6 +206,7 @@ export class ResumeFormComponent implements OnInit {
       });
     }
   }
+  
   
 
   onCancel(): void {
