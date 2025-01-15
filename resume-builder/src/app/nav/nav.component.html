@@ -1,0 +1,15 @@
+// src/app/components/nav/nav.component.html
+<nav class="navbar" *ngIf="authService.currentUserValue">
+    <div class="navbar-container">
+        <a routerLink="/resumes" class="navbar-brand">
+            Resume Builder
+        </a>
+
+        <div class="navbar-menu">
+            <a routerLink="/resumes" routerLinkActive="active">My Resumes</a>
+            <button class="btn btn-outline" (click)="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </div>
+</nav>

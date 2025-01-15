@@ -1,0 +1,57 @@
+// src/app/components/resume-form/resume-form.component.scss
+.resume-form-container {
+    padding: 2rem;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+
+    .resume-form-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+
+            &.btn-primary {
+                background-color: #007bff;
+                color: white;
+
+                &:hover {
+                    background-color: #0056b3;
+                }
+
+                &:disabled {
+                    background-color: #ccc;
+                    cursor: not-allowed;
+                }
+            }
+
+            &.btn-secondary {
+                background-color: #6c757d;
+                color: white;
+
+                &:hover {
+                    background-color: #545b62;
+                }
+            }
+        }
+    }
+}

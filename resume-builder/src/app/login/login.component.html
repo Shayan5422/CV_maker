@@ -1,0 +1,55 @@
+// src/app/components/login/login.component.html
+<div class="login-container">
+    <div class="login-card">
+        <h2 class="text-center mb-4">Login</h2>
+        
+        <div class="alert alert-danger" *ngIf="errorMessage">
+            {{ errorMessage }}
+        </div>
+
+        <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input 
+                    type="email" 
+                    id="email"
+                    class="form-control" 
+                    [(ngModel)]="email" 
+                    name="email" 
+                    required 
+                    email
+                    #emailInput="ngModel">
+                <div class="invalid-feedback" *ngIf="emailInput.invalid && emailInput.touched">
+                    Please enter a valid email address
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input 
+                    type="password" 
+                    id="password"
+                    class="form-control" 
+                    [(ngModel)]="password" 
+                    name="password" 
+                    required
+                    minlength="6"
+                    #passwordInput="ngModel">
+                <div class="invalid-feedback" *ngIf="passwordInput.invalid && passwordInput.touched">
+                    Password must be at least 6 characters long
+                </div>
+            </div>
+
+            <button 
+                type="submit" 
+                class="btn btn-primary btn-block"
+                [disabled]="loginForm.invalid">
+                Login
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <p>Don't have an account? <a routerLink="/register">Register</a></p>
+        </div>
+    </div>
+</div>
