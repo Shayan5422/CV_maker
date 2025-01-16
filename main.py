@@ -189,6 +189,7 @@ async def download_resume_pdf(
     resume_id: int,
     background_tasks: BackgroundTasks,
     theme: str = Query(None, description="Theme ID for the PDF"),
+    
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -200,7 +201,7 @@ async def download_resume_pdf(
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # تعریف تم‌ها
+    # Theme definitions
     themes = {
         "modern-blue": {
             "colors": {
@@ -208,7 +209,8 @@ async def download_resume_pdf(
                 "secondary": "#1d4ed8",
                 "background": "#f8fafc",
                 "text": "#1e293b",
-                "accent": "#60a5fa"
+                "accent": "#60a5fa",
+                "sidebar": "#1e3a8a"
             },
             "fonts": {
                 "title": "Helvetica-Bold",
@@ -222,7 +224,8 @@ async def download_resume_pdf(
                 "secondary": "#1e293b",
                 "background": "#f1f5f9",
                 "text": "#0f172a",
-                "accent": "#94a3b8"
+                "accent": "#94a3b8",
+                "sidebar": "#0f172a"
             },
             "fonts": {
                 "title": "Times-Bold",
@@ -236,35 +239,8 @@ async def download_resume_pdf(
                 "secondary": "#6d28d9",
                 "background": "#faf5ff",
                 "text": "#2e1065",
-                "accent": "#a78bfa"
-            },
-            "fonts": {
-                "title": "Helvetica-Bold",
-                "heading": "Helvetica-Bold",
-                "normal": "Helvetica"
-            }
-        },
-        "nature-green": {
-            "colors": {
-                "primary": "#059669",
-                "secondary": "#047857",
-                "background": "#f0fdf4",
-                "text": "#064e3b",
-                "accent": "#6ee7b7"
-            },
-            "fonts": {
-                "title": "Helvetica-Bold",
-                "heading": "Helvetica-Bold",
-                "normal": "Helvetica"
-            }
-        },
-        "coral-sunset": {
-            "colors": {
-                "primary": "#f43f5e",
-                "secondary": "#e11d48",
-                "background": "#fff1f2",
-                "text": "#881337",
-                "accent": "#fda4af"
+                "accent": "#a78bfa",
+                "sidebar": "#5b21b6"
             },
             "fonts": {
                 "title": "Helvetica-Bold",
@@ -274,31 +250,45 @@ async def download_resume_pdf(
         }
     }
 
-    # انتخاب تم پیش‌فرض اگر تمی انتخاب نشده باشد
     selected_theme = themes.get(theme, themes["modern-blue"])
+
+    # تعریف نمادها با استفاده از کاراکترهای سازگار با ReportLab
+    icons = {
+        'phone': '☏',  # یا '✆'
+        'email': '✉',
+        'location': '⌖',
+        'education': '◆',
+        'experience': '▶',
+        'skills': '★',
+        'languages': '◈',
+        'projects': '▣',
+        'interests': '❖',
+        'certifications': '❋',
+        'awards': '✯'
+    }
 
     timestamp = int(datetime.now().timestamp())
     filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
     
     try:
-        # تنظیمات سند
+        # Document setup with zero margins
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
-            rightMargin=0.5*inch,
-            leftMargin=0.5*inch,
-            topMargin=0.5*inch,
-            bottomMargin=0.5*inch
+            rightMargin=0,
+            leftMargin=0,
+            topMargin=-6,
+            bottomMargin=0
         )
 
-        # تعریف استایل‌ها با استفاده از تم انتخاب شده
         styles = getSampleStyleSheet()
         
+        # Custom styles
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
+            fontSize=22,
+            spaceAfter=16,
             alignment=1,
             textColor=colors.HexColor(selected_theme["colors"]["primary"]),
             fontName=selected_theme["fonts"]["title"]
@@ -307,9 +297,9 @@ async def download_resume_pdf(
         heading_style = ParagraphStyle(
             'CustomHeading',
             parent=styles['Heading2'],
-            fontSize=16,
-            spaceBefore=15,
-            spaceAfter=10,
+            fontSize=14,
+            spaceBefore=10,
+            spaceAfter=6,
             textColor=colors.HexColor(selected_theme["colors"]["secondary"]),
             fontName=selected_theme["fonts"]["heading"]
         )
@@ -317,9 +307,9 @@ async def download_resume_pdf(
         sidebar_heading_style = ParagraphStyle(
             'SidebarHeading',
             parent=styles['Heading3'],
-            fontSize=14,
-            spaceBefore=10,
-            spaceAfter=5,
+            fontSize=12,
+            spaceBefore=8,
+            spaceAfter=4,
             textColor=colors.white,
             fontName=selected_theme["fonts"]["heading"]
         )
@@ -327,8 +317,8 @@ async def download_resume_pdf(
         normal_style = ParagraphStyle(
             'CustomNormal',
             parent=styles['Normal'],
-            fontSize=11,
-            spaceAfter=8,
+            fontSize=10,
+            spaceAfter=6,
             textColor=colors.HexColor(selected_theme["colors"]["text"]),
             fontName=selected_theme["fonts"]["normal"]
         )
@@ -336,37 +326,40 @@ async def download_resume_pdf(
         sidebar_text_style = ParagraphStyle(
             'SidebarText',
             parent=styles['Normal'],
-            fontSize=10,
+            fontSize=9,
             textColor=colors.white,
-            fontName=selected_theme["fonts"]["normal"]
+            fontName=selected_theme["fonts"]["normal"],
+            spaceBefore=2,
+            spaceAfter=4
         )
         
         info_style = ParagraphStyle(
             'InfoStyle',
             parent=styles['Normal'],
-            fontSize=10,
+            fontSize=9,
             textColor=colors.HexColor(selected_theme["colors"]["accent"]),
             fontName=selected_theme["fonts"]["normal"]
         )
 
-        # ساخت محتوا برای ستون اصلی و سایدبار
+        # Build content for main column and sidebar
         main_elements = []
         sidebar_elements = []
 
-        # سرصفحه با عنوان (در ستون اصلی)
+        # Header with Title (in main column)
         main_elements.append(Paragraph(resume.title, title_style))
-        main_elements.append(Spacer(1, 20))
+        main_elements.append(Spacer(1, 16))
 
-        # اطلاعات تماس (در سایدبار)
-        sidebar_elements.append(Paragraph("Contact Information", sidebar_heading_style))
+        # Contact Information (in sidebar)
+        sidebar_elements.append(Paragraph(f"{icons['phone']} Contact", sidebar_heading_style))
         sidebar_elements.append(Paragraph(f"<b>{resume.full_name}</b>", sidebar_text_style))
-        sidebar_elements.append(Paragraph(f"Email: {resume.email}", sidebar_text_style))
-        sidebar_elements.append(Paragraph(f"Phone: {resume.phone}", sidebar_text_style))
-        sidebar_elements.append(Spacer(1, 20))
+        sidebar_elements.append(Paragraph(f"{icons['email']} {resume.email}", sidebar_text_style))
+        if resume.phone:
+            sidebar_elements.append(Paragraph(f"{icons['phone']} {resume.phone}", sidebar_text_style))
+        sidebar_elements.append(Spacer(1, 12))
 
-        # مهارت‌ها (در سایدبار)
+        # Skills (in sidebar)
         if resume.skills:
-            sidebar_elements.append(Paragraph("Skills", sidebar_heading_style))
+            sidebar_elements.append(Paragraph(f"{icons['skills']} Skills", sidebar_heading_style))
             try:
                 skills_list = json.loads(resume.skills)
                 for skill in skills_list:
@@ -376,13 +369,27 @@ async def download_resume_pdf(
                             sidebar_text_style
                         )
                     )
-                sidebar_elements.append(Spacer(1, 15))
+                sidebar_elements.append(Spacer(1, 12))
             except json.JSONDecodeError:
                 print(f"Error parsing skills JSON for resume {resume_id}")
 
-        # گواهینامه‌ها (در سایدبار)
+        # Languages (if available)
+        if hasattr(resume, 'languages') and resume.languages:
+            try:
+                languages_list = json.loads(resume.languages)
+                if languages_list:
+                    sidebar_elements.append(Paragraph(f"{icons['languages']} Languages", sidebar_heading_style))
+                    for lang in languages_list:
+                        sidebar_elements.append(
+                            Paragraph(f"{lang['language']} - {lang['level']}", sidebar_text_style)
+                        )
+                    sidebar_elements.append(Spacer(1, 12))
+            except json.JSONDecodeError:
+                pass
+
+        # Certifications (in sidebar)
         if resume.certifications:
-            sidebar_elements.append(Paragraph("Certifications", sidebar_heading_style))
+            sidebar_elements.append(Paragraph(f"{icons['certifications']} Certifications", sidebar_heading_style))
             try:
                 certifications_list = json.loads(resume.certifications)
                 for cert in certifications_list:
@@ -392,19 +399,19 @@ async def download_resume_pdf(
                     sidebar_elements.append(
                         Paragraph(f"{cert['issuer']} ({cert['date']})", sidebar_text_style)
                     )
-                sidebar_elements.append(Spacer(1, 15))
+                sidebar_elements.append(Spacer(1, 12))
             except json.JSONDecodeError:
                 print(f"Error parsing certifications JSON for resume {resume_id}")
 
-        # خلاصه حرفه‌ای (در ستون اصلی)
+        # Professional Summary (in main column)
         if resume.summary and resume.summary.strip():
-            main_elements.append(Paragraph("Professional Summary", heading_style))
+            main_elements.append(Paragraph(f"Professional Summary", heading_style))
             main_elements.append(Paragraph(resume.summary, normal_style))
-            main_elements.append(Spacer(1, 20))
+            main_elements.append(Spacer(1, 16))
 
-        # بخش تجربیات (در ستون اصلی)
+        # Experience Section (in main column)
         if resume.experience:
-            main_elements.append(Paragraph("Professional Experience", heading_style))
+            main_elements.append(Paragraph(f"{icons['experience']} Professional Experience", heading_style))
             try:
                 experience_list = json.loads(resume.experience)
                 for exp in experience_list:
@@ -421,13 +428,13 @@ async def download_resume_pdf(
                         )
                     )
                     main_elements.append(Paragraph(exp['description'], normal_style))
-                    main_elements.append(Spacer(1, 10))
+                    main_elements.append(Spacer(1, 8))
             except json.JSONDecodeError:
                 print(f"Error parsing experience JSON for resume {resume_id}")
 
-        # بخش تحصیلات (در ستون اصلی)
+        # Education Section (in main column)
         if resume.education:
-            main_elements.append(Paragraph("Education", heading_style))
+            main_elements.append(Paragraph(f"{icons['education']} Education", heading_style))
             try:
                 education_list = json.loads(resume.education)
                 for edu in education_list:
@@ -445,13 +452,13 @@ async def download_resume_pdf(
                     )
                     if edu.get('description'):
                         main_elements.append(Paragraph(edu['description'], normal_style))
-                    main_elements.append(Spacer(1, 10))
+                    main_elements.append(Spacer(1, 8))
             except json.JSONDecodeError:
                 print(f"Error parsing education JSON for resume {resume_id}")
 
-        # بخش پروژه‌ها (در ستون اصلی)
+        # Projects Section (in main column)
         if resume.projects:
-            main_elements.append(Paragraph("Projects", heading_style))
+            main_elements.append(Paragraph(f"{icons['projects']} Projects", heading_style))
             try:
                 projects_list = json.loads(resume.projects)
                 for project in projects_list:
@@ -463,58 +470,81 @@ async def download_resume_pdf(
                         main_elements.append(
                             Paragraph(f"Link: {project['link']}", info_style)
                         )
-                    main_elements.append(Spacer(1, 10))
+                    main_elements.append(Spacer(1, 8))
             except json.JSONDecodeError:
                 print(f"Error parsing projects JSON for resume {resume_id}")
 
-        # ایجاد لایه‌بندی دو ستونی
-        total_width = doc.width
-        sidebar_width = total_width * 0.3
-        main_width = total_width * 0.7
+        # ساخت یک جدول اصلی برای کل صفحه
+        page_width, page_height = A4
+        sidebar_width = page_width * 0.28
+        main_width = page_width * 0.72
 
-        # ساخت محتوا برای هر دو ستون
-        sidebar_content = []
-        for element in sidebar_elements:
-            if isinstance(element, Spacer):
-                sidebar_content.append([''])
-            else:
-                sidebar_content.append([element])
+        # اضافه کردن سلول‌های خالی به سایدبار برای پر کردن کل ارتفاع
+        min_rows = 115  # تعداد حداقل سطرها برای پوشش کل صفحه
+        while len(sidebar_elements) < min_rows:
+            sidebar_elements.append(Spacer(1, 12))
 
-        main_content = []
-        for element in main_elements:
-            if isinstance(element, Spacer):
-                main_content.append([''])
-            else:
-                main_content.append([element])
+        # تبدیل المان‌ها به محتوای جدول
+        sidebar_content = [[element] for element in sidebar_elements]
+        main_content = [[element] for element in main_elements]
 
-        # اطمینان از برابری تعداد سطرها در هر دو ستون
-        max_rows = max(len(sidebar_content), len(main_content))
+        # اطمینان از برابری تعداد سطرها
+        max_rows = max(len(sidebar_content), len(main_content), min_rows)
         while len(sidebar_content) < max_rows:
             sidebar_content.append([''])
         while len(main_content) < max_rows:
             main_content.append([''])
 
-        # ترکیب ستون‌ها در جدول نهایی
+        # ترکیب محتوا در جدول نهایی
         table_data = []
-        for i in range(max_rows):
-            table_data.append(sidebar_content[i] + main_content[i])
+        
+        # ابتدا یک ردیف برای کل سایدبار
+        sidebar_data = []
+        for item in sidebar_elements:
+            if isinstance(item, Spacer):
+                sidebar_data.append(Paragraph("<br/>", sidebar_text_style))
+            else:
+                sidebar_data.append(item)
+        
+        # یک ردیف با دو ستون: سایدبار و محتوای اصلی
+        main_data = []
+        for item in main_elements:
+            if isinstance(item, Spacer):
+                main_data.append(Paragraph("<br/>", normal_style))
+            else:
+                main_data.append(item)
+                
+        table_data.append([
+            sidebar_data,  # ستون سایدبار
+            main_data     # ستون محتوای اصلی
+        ])
 
-        # ایجاد جدول با استایل مناسب
+        # ایجاد جدول با استایل
         table = Table(table_data, colWidths=[sidebar_width, main_width])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor(selected_theme["colors"]["primary"])),
+        table_style = TableStyle([
+            # Background color for sidebar
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor(selected_theme["colors"]["sidebar"])),
+            # Text color for sidebar
             ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
+            # Vertical alignment
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ]))
+            # Minimum padding
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            # Prevent table from breaking across pages
+            ('NOSPLIT', (0, 0), (-1, -1)),
+            # Make sure content uses full width
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ])
+        table.setStyle(table_style)
 
         # ساخت PDF
-        doc.build([table])
+        elements = [table]
+        doc.build(elements)
 
-        # تعریف تابع پاکسازی
+        # تابع پاکسازی
         def cleanup():
             try:
                 if os.path.exists(filename):
@@ -533,7 +563,6 @@ async def download_resume_pdf(
         )
 
     except Exception as e:
-        # پاکسازی فایل در صورت بروز خطا
         if os.path.exists(filename):
             os.unlink(filename)
         raise HTTPException(
