@@ -1,10 +1,12 @@
 # main.py
+import base64
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List
+from reportlab.platypus import Image
 import jwt
 import models
 import schemas
@@ -30,6 +32,16 @@ import io
 import os
 import json
 from datetime import datetime
+
+# ReportLab and Pillow Imports
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from fastapi.responses import FileResponse
+from PIL import Image, ImageDraw
+import base64
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -189,7 +201,6 @@ async def download_resume_pdf(
     resume_id: int,
     background_tasks: BackgroundTasks,
     theme: str = Query(None, description="Theme ID for the PDF"),
-    
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -201,7 +212,7 @@ async def download_resume_pdf(
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # Theme definitions
+    # Define themes
     themes = {
         "modern-blue": {
             "colors": {
@@ -252,9 +263,9 @@ async def download_resume_pdf(
 
     selected_theme = themes.get(theme, themes["modern-blue"])
 
-    # تعریف نمادها با استفاده از کاراکترهای سازگار با ReportLab
+    # Icons for various sections (using Unicode symbols)
     icons = {
-        'phone': '☏',  # یا '✆'
+        'phone': '☎',  
         'email': '✉',
         'location': '⌖',
         'education': '◆',
@@ -271,7 +282,7 @@ async def download_resume_pdf(
     filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
     
     try:
-        # Document setup with zero margins
+        # Create a PDF document with margins
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
@@ -280,7 +291,7 @@ async def download_resume_pdf(
             topMargin=-6,
             bottomMargin=0
         )
-
+        
         styles = getSampleStyleSheet()
         
         # Custom styles
@@ -341,75 +352,89 @@ async def download_resume_pdf(
             fontName=selected_theme["fonts"]["normal"]
         )
 
-        # Build content for main column and sidebar
-        main_elements = []
+        # Create a list to hold the PDF elements
+        elements = []
+
+        # ============================
+        # Build the Contact Sidebar
+        # ============================
         sidebar_elements = []
 
-        # Header with Title (in main column)
-        main_elements.append(Paragraph(resume.title, title_style))
-        main_elements.append(Spacer(1, 16))
+        # Add Photo if exists
+        if resume.photo:
+            try:
+                # Check if photo is a base64 image string
+                if resume.photo.startswith("data:image"):
+                    header, encoded = resume.photo.split(",", 1)
+                    img_data = base64.b64decode(encoded)
+                    with io.BytesIO(img_data) as img_buffer:
+                        pil_image = Image.open(img_buffer).convert("RGBA")
+                else:
+                    # Otherwise, assume it's a URL or file path
+                    pil_image = Image.open(resume.photo).convert("RGBA")
 
-        # Contact Information (in sidebar)
-        sidebar_elements.append(Paragraph(f"{icons['phone']} Contact", sidebar_heading_style))
-        sidebar_elements.append(Paragraph(f"<b>{resume.full_name}</b>", sidebar_text_style))
+                # Process image: round its corners
+                def round_corners(im, radius):
+                    # Create a mask for rounded corners
+                    circle = Image.new('L', (radius * 2, radius * 2), 0)
+                    draw = ImageDraw.Draw(circle)
+                    draw.ellipse((0, 0, radius * 2, radius * 2), fill=255)
+                    alpha = Image.new('L', im.size, 255)
+                    w, h = im.size
+
+                    # Top-left corner
+                    alpha.paste(circle.crop((0, 0, radius, radius)), (0, 0))
+                    # Top-right corner
+                    alpha.paste(circle.crop((radius, 0, radius * 2, radius)), (w - radius, 0))
+                    # Bottom-left corner
+                    alpha.paste(circle.crop((0, radius, radius, radius * 2)), (0, h - radius))
+                    # Bottom-right corner
+                    alpha.paste(circle.crop((radius, radius, radius * 2, radius * 2)), (w - radius, h - radius))
+                    im.putalpha(alpha)
+                    return im
+
+                rounded_image = round_corners(pil_image, radius=20)
+                # Save the rounded image to an in-memory buffer
+                img_buffer = io.BytesIO()
+                rounded_image.save(img_buffer, format="PNG")
+                img_buffer.seek(0)
+                # Create ReportLab image from in-memory buffer
+                rl_img = RLImage(img_buffer, width=1.5*inch, height=1.5*inch)
+                sidebar_elements.append(rl_img)
+                sidebar_elements.append(Spacer(1, 12))
+            except Exception as e:
+                print(f"Error processing photo: {e}")
+
+        # Add Contact information in the sidebar
         sidebar_elements.append(Paragraph(f"{icons['email']} {resume.email}", sidebar_text_style))
         if resume.phone:
             sidebar_elements.append(Paragraph(f"{icons['phone']} {resume.phone}", sidebar_text_style))
+        # Additional contact details (location, etc.) can be added here
         sidebar_elements.append(Spacer(1, 12))
-
-        # Skills (in sidebar)
-        if resume.skills:
-            sidebar_elements.append(Paragraph(f"{icons['skills']} Skills", sidebar_heading_style))
-            try:
-                skills_list = json.loads(resume.skills)
-                for skill in skills_list:
-                    sidebar_elements.append(
-                        Paragraph(
-                            f"<b>{skill['skill']}</b> - {skill['proficiency']}", 
-                            sidebar_text_style
-                        )
-                    )
-                sidebar_elements.append(Spacer(1, 12))
-            except json.JSONDecodeError:
-                print(f"Error parsing skills JSON for resume {resume_id}")
-
-        # Languages (if available)
-        if hasattr(resume, 'languages') and resume.languages:
-            try:
-                languages_list = json.loads(resume.languages)
-                if languages_list:
-                    sidebar_elements.append(Paragraph(f"{icons['languages']} Languages", sidebar_heading_style))
-                    for lang in languages_list:
-                        sidebar_elements.append(
-                            Paragraph(f"{lang['language']} - {lang['level']}", sidebar_text_style)
-                        )
-                    sidebar_elements.append(Spacer(1, 12))
-            except json.JSONDecodeError:
-                pass
-
-        # Certifications (in sidebar)
+        
+        # Optionally add certifications or other sidebar items
         if resume.certifications:
             sidebar_elements.append(Paragraph(f"{icons['certifications']} Certifications", sidebar_heading_style))
             try:
                 certifications_list = json.loads(resume.certifications)
                 for cert in certifications_list:
-                    sidebar_elements.append(
-                        Paragraph(f"<b>{cert['title']}</b>", sidebar_text_style)
-                    )
-                    sidebar_elements.append(
-                        Paragraph(f"{cert['issuer']} ({cert['date']})", sidebar_text_style)
-                    )
+                    sidebar_elements.append(Paragraph(f"<b>{cert['title']}</b>", sidebar_text_style))
+                    sidebar_elements.append(Paragraph(f"{cert['issuer']} ({cert['date']})", sidebar_text_style))
                 sidebar_elements.append(Spacer(1, 12))
             except json.JSONDecodeError:
                 print(f"Error parsing certifications JSON for resume {resume_id}")
 
-        # Professional Summary (in main column)
+        # ============================
+        # Build the Main Content
+        # ============================
+        main_elements = []
+        main_elements.append(Paragraph(resume.title, title_style))
+        main_elements.append(Spacer(1, 16))
         if resume.summary and resume.summary.strip():
-            main_elements.append(Paragraph(f"Professional Summary", heading_style))
+            main_elements.append(Paragraph("Professional Summary", heading_style))
             main_elements.append(Paragraph(resume.summary, normal_style))
             main_elements.append(Spacer(1, 16))
-
-        # Experience Section (in main column)
+        
         if resume.experience:
             main_elements.append(Paragraph(f"{icons['experience']} Professional Experience", heading_style))
             try:
@@ -432,7 +457,6 @@ async def download_resume_pdf(
             except json.JSONDecodeError:
                 print(f"Error parsing experience JSON for resume {resume_id}")
 
-        # Education Section (in main column)
         if resume.education:
             main_elements.append(Paragraph(f"{icons['education']} Education", heading_style))
             try:
@@ -456,7 +480,6 @@ async def download_resume_pdf(
             except json.JSONDecodeError:
                 print(f"Error parsing education JSON for resume {resume_id}")
 
-        # Projects Section (in main column)
         if resume.projects:
             main_elements.append(Paragraph(f"{icons['projects']} Projects", heading_style))
             try:
@@ -474,13 +497,25 @@ async def download_resume_pdf(
             except json.JSONDecodeError:
                 print(f"Error parsing projects JSON for resume {resume_id}")
 
-        # ساخت یک جدول اصلی برای کل صفحه
+        if resume.skills:
+            main_elements.append(Paragraph(f"{icons['skills']} Skills", heading_style))
+            try:
+                skills_list = json.loads(resume.skills)
+                skills_formatted = ", ".join([f"{s['skill']} ({s['proficiency']})" for s in skills_list])
+                main_elements.append(Paragraph(skills_formatted, normal_style))
+                main_elements.append(Spacer(1, 8))
+            except json.JSONDecodeError:
+                print(f"Error parsing skills JSON for resume {resume_id}")
+
+        # ============================
+        # Layout: Sidebar & Main Column via Table
+        # ============================
         page_width, page_height = A4
         sidebar_width = page_width * 0.28
         main_width = page_width * 0.72
 
         # اضافه کردن سلول‌های خالی به سایدبار برای پر کردن کل ارتفاع
-        min_rows = 115  # تعداد حداقل سطرها برای پوشش کل صفحه
+        min_rows = 110  # تعداد حداقل سطرها برای پوشش کل صفحه
         while len(sidebar_elements) < min_rows:
             sidebar_elements.append(Spacer(1, 12))
 
@@ -522,29 +557,20 @@ async def download_resume_pdf(
         # ایجاد جدول با استایل
         table = Table(table_data, colWidths=[sidebar_width, main_width])
         table_style = TableStyle([
-            # Background color for sidebar
             ('BACKGROUND', (0, 0), (0, -1), colors.HexColor(selected_theme["colors"]["sidebar"])),
-            # Text color for sidebar
             ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
-            # Vertical alignment
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            # Minimum padding
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            # Prevent table from breaking across pages
             ('NOSPLIT', (0, 0), (-1, -1)),
-            # Make sure content uses full width
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ])
         table.setStyle(table_style)
 
-        # ساخت PDF
-        elements = [table]
+        elements.append(table)
         doc.build(elements)
 
-        # تابع پاکسازی
         def cleanup():
             try:
                 if os.path.exists(filename):
@@ -552,16 +578,13 @@ async def download_resume_pdf(
             except Exception as e:
                 print(f"Error cleaning up file {filename}: {e}")
 
-        # زمانبندی پاکسازی
         background_tasks.add_task(cleanup)
 
-        # برگرداندن فایل PDF
         return FileResponse(
             path=filename,
             media_type='application/pdf',
             filename=f"{resume.title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
         )
-
     except Exception as e:
         if os.path.exists(filename):
             os.unlink(filename)

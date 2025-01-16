@@ -25,5 +25,6 @@ class Resume(Base):
     skills = Column(Text)       # Will store JSON string of skills items
     projects = Column(Text)     # Will store JSON string of project items
     certifications = Column(Text)  # Will store JSON string of certification items
+    photo = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="resumes")

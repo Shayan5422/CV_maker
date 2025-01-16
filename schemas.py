@@ -58,6 +58,7 @@ class ResumeBase(BaseModel):
     skills: str
     projects: str
     certifications: str
+    photo: Optional[str] = None
 
     # Validators to ensure JSON strings are valid
     @field_validator('experience')

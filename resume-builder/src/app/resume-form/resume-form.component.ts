@@ -38,7 +38,8 @@ export class ResumeFormComponent implements OnInit {
       // New Sections:
       skills: this.formBuilder.array([this.createSkillGroup()]),
       projects: this.formBuilder.array([this.createProjectGroup()]),
-      certifications: this.formBuilder.array([this.createCertificationGroup()])
+      certifications: this.formBuilder.array([this.createCertificationGroup()]),
+      photo: [null]
     });
   }
 
@@ -266,5 +267,19 @@ export class ResumeFormComponent implements OnInit {
 
   onCancel(): void {
     this.router.navigate(['/resumes']);
+  }
+
+  onFileChange(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // فرض می‌کنیم می‌خواهیم رشته base64 ذخیره شود
+        this.resumeForm.patchValue({
+          photo: reader.result
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   }
 }
