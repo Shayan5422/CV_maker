@@ -19,6 +19,17 @@ from fastapi.responses import FileResponse
 import json
 import io
 import os
+from fastapi import BackgroundTasks
+from fastapi.responses import FileResponse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+import io
+import os
+import json
+from datetime import datetime
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -174,8 +185,9 @@ def delete_resume(
 
 
 @app.get("/resumes/{resume_id}/pdf")
-def download_resume_pdf(
+async def download_resume_pdf(
     resume_id: int,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -188,117 +200,218 @@ def download_resume_pdf(
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # Create PDF
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=72
-    )
-
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30
-    )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        spaceAfter=10,
-        textColor=colors.HexColor('#2c3e50')
-    )
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontSize=12,
-        spaceAfter=12
-    )
-
-    # Build PDF content
-    elements = []
+    # Create unique filename using timestamp
+    timestamp = int(datetime.now().timestamp())
+    filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
     
-    # Header
-    elements.append(Paragraph(resume.title, title_style))
-    elements.append(Spacer(1, 12))
-    
-    # Contact Info
-    contact_data = [
-        [Paragraph(resume.full_name, normal_style)],
-        [Paragraph(resume.email, normal_style)],
-        [Paragraph(resume.phone, normal_style)]
-    ]
-    contact_table = Table(contact_data, colWidths=[400])
-    contact_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    elements.append(contact_table)
-    elements.append(Spacer(1, 20))
+    try:
+        # Document settings
+        doc = SimpleDocTemplate(
+            filename,
+            pagesize=A4,
+            rightMargin=0.5*inch,
+            leftMargin=0.5*inch,
+            topMargin=0.5*inch,
+            bottomMargin=0.5*inch
+        )
 
-    # Summary
-    if resume.summary:
-        elements.append(Paragraph("Professional Summary", heading_style))
-        elements.append(Paragraph(resume.summary, normal_style))
+        # Define styles
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1,  # Center alignment
+            textColor=colors.HexColor('#2c3e50')
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            spaceBefore=15,
+            spaceAfter=10,
+            textColor=colors.HexColor('#2980b9')
+        )
+        
+        subheading_style = ParagraphStyle(
+            'CustomSubHeading',
+            parent=styles['Heading3'],
+            fontSize=13,
+            spaceBefore=10,
+            spaceAfter=5,
+            textColor=colors.HexColor('#34495e')
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=8,
+            textColor=colors.HexColor('#2c3e50')
+        )
+        
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#7f8c8d')
+        )
+
+        # Build PDF content
+        elements = []
+
+        # Header with Title
+        elements.append(Paragraph(resume.title, title_style))
         elements.append(Spacer(1, 20))
 
-    # Experience
-    if resume.experience:
-        elements.append(Paragraph("Experience", heading_style))
-        experience_list = json.loads(resume.experience)
-        for exp in experience_list:
-            elements.append(Paragraph(f"<b>{exp['position']}</b> at {exp['company']}", normal_style))
-            elements.append(Paragraph(f"{exp['start_date']} - {exp['end_date']}", normal_style))
-            elements.append(Paragraph(exp['description'], normal_style))
-            elements.append(Spacer(1, 12))
+        # Contact Information
+        contact_data = [
+            [Paragraph(f"<b>{resume.full_name}</b>", normal_style)],
+            [Paragraph(f"Email: {resume.email}", info_style)],
+            [Paragraph(f"Phone: {resume.phone}", info_style)]
+        ]
+        
+        contact_table = Table(contact_data, colWidths=[doc.width])
+        contact_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        elements.append(contact_table)
+        elements.append(Spacer(1, 20))
 
-    # Education
-    if resume.education:
-        elements.append(Paragraph("Education", heading_style))
-        education_list = json.loads(resume.education)
-        for edu in education_list:
-            elements.append(Paragraph(f"<b>{edu['degree']}</b> from {edu['institution']}", normal_style))
-            elements.append(Paragraph(f"{edu['start_date']} - {edu['end_date']}", normal_style))
-            if edu.get('description'):
-                elements.append(Paragraph(edu['description'], normal_style))
-            elements.append(Spacer(1, 12))
+        # Professional Summary
+        if resume.summary and resume.summary.strip():
+            elements.append(Paragraph("Professional Summary", heading_style))
+            elements.append(Paragraph(resume.summary, normal_style))
+            elements.append(Spacer(1, 20))
 
-    # Skills
-    if resume.skills:
-        elements.append(Paragraph("Skills", heading_style))
-        skills_list = json.loads(resume.skills)
-        for skill in skills_list:
-            elements.append(Paragraph(f"<b>{skill['skill']}</b> - {skill['proficiency']}", normal_style))
-        elements.append(Spacer(1, 12))
+        # Experience Section
+        if resume.experience:
+            elements.append(Paragraph("Professional Experience", heading_style))
+            try:
+                experience_list = json.loads(resume.experience)
+                for exp in experience_list:
+                    elements.append(Paragraph(
+                        f"<b>{exp['position']}</b> at <b>{exp['company']}</b>", 
+                        subheading_style
+                    ))
+                    elements.append(Paragraph(
+                        f"{exp['start_date']} - {exp['end_date']}", 
+                        info_style
+                    ))
+                    elements.append(Paragraph(exp['description'], normal_style))
+                    elements.append(Spacer(1, 10))
+            except json.JSONDecodeError:
+                print(f"Error parsing experience JSON for resume {resume_id}")
 
-    # Generate PDF
-    doc.build(elements)
-    buffer.seek(0)
-    
-    # Create a temporary file
-    filename = f"resume_{resume_id}.pdf"
-    with open(filename, 'wb') as f:
-        f.write(buffer.getvalue())
-    
-    # Return the file and clean up
-    response = FileResponse(
-        filename,
-        media_type='application/pdf',
-        filename=f"{resume.title.replace(' ', '_')}.pdf"
-    )
-    
-    # Schedule file deletion (cleanup)
-    def cleanup():
-        try:
-            os.remove(filename)
-        except:
-            pass
-            
-    response.background = cleanup
-    return response
+        # Education Section
+        if resume.education:
+            elements.append(Paragraph("Education", heading_style))
+            try:
+                education_list = json.loads(resume.education)
+                for edu in education_list:
+                    elements.append(Paragraph(
+                        f"<b>{edu['degree']}</b> - {edu['institution']}", 
+                        subheading_style
+                    ))
+                    elements.append(Paragraph(
+                        f"{edu['start_date']} - {edu['end_date']}", 
+                        info_style
+                    ))
+                    if edu.get('description'):
+                        elements.append(Paragraph(edu['description'], normal_style))
+                    elements.append(Spacer(1, 10))
+            except json.JSONDecodeError:
+                print(f"Error parsing education JSON for resume {resume_id}")
+
+        # Skills Section
+        if resume.skills:
+            elements.append(Paragraph("Skills", heading_style))
+            try:
+                skills_list = json.loads(resume.skills)
+                skills_data = []
+                for skill in skills_list:
+                    skills_data.append(
+                        Paragraph(
+                            f"<b>{skill['skill']}</b> - {skill['proficiency']}", 
+                            normal_style
+                        )
+                    )
+                elements.extend(skills_data)
+                elements.append(Spacer(1, 15))
+            except json.JSONDecodeError:
+                print(f"Error parsing skills JSON for resume {resume_id}")
+
+        # Projects Section
+        if resume.projects:
+            elements.append(Paragraph("Projects", heading_style))
+            try:
+                projects_list = json.loads(resume.projects)
+                for project in projects_list:
+                    elements.append(Paragraph(f"<b>{project['name']}</b>", subheading_style))
+                    elements.append(Paragraph(project['description'], normal_style))
+                    if project.get('link'):
+                        elements.append(Paragraph(
+                            f"Link: {project['link']}", 
+                            info_style
+                        ))
+                    elements.append(Spacer(1, 10))
+            except json.JSONDecodeError:
+                print(f"Error parsing projects JSON for resume {resume_id}")
+
+        # Certifications Section
+        if resume.certifications:
+            elements.append(Paragraph("Certifications", heading_style))
+            try:
+                certifications_list = json.loads(resume.certifications)
+                for cert in certifications_list:
+                    elements.append(Paragraph(
+                        f"<b>{cert['title']}</b> - {cert['issuer']}", 
+                        subheading_style
+                    ))
+                    elements.append(Paragraph(f"Date: {cert['date']}", info_style))
+                    elements.append(Spacer(1, 10))
+            except json.JSONDecodeError:
+                print(f"Error parsing certifications JSON for resume {resume_id}")
+
+        # Footer
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph(
+            f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            info_style
+        ))
+
+        # Build PDF
+        doc.build(elements)
+
+        # Define cleanup function
+        def cleanup():
+            try:
+                if os.path.exists(filename):
+                    os.unlink(filename)
+            except Exception as e:
+                print(f"Error cleaning up file {filename}: {e}")
+
+        # Schedule cleanup
+        background_tasks.add_task(cleanup)
+
+        # Return PDF file
+        return FileResponse(
+            path=filename,
+            media_type='application/pdf',
+            filename=f"{resume.title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        )
+
+    except Exception as e:
+        # Clean up file if there was an error
+        if os.path.exists(filename):
+            os.unlink(filename)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating PDF: {str(e)}"
+        )
