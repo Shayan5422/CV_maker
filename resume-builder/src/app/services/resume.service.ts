@@ -8,7 +8,8 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class ResumeService {
-  private apiUrl = 'http://127.0.0.1:8000/resumes';
+  private baseUrl = 'http://127.0.0.1:8000';
+  private apiUrl = `${this.baseUrl}/resumes`;
 
   constructor(private http: HttpClient) {}
 
@@ -30,5 +31,14 @@ export class ResumeService {
 
   deleteResume(id: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  }
+
+  downloadResumePDF(id: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${id}/pdf`, {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/pdf'
+      }
+    });
   }
 }

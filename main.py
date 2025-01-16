@@ -10,6 +10,15 @@ import models
 import schemas
 from database import SessionLocal, engine, Base
 from passlib.context import CryptContext
+# Install required package first: pip install reportlab
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from fastapi.responses import FileResponse
+import json
+import io
+import os
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -162,3 +171,134 @@ def delete_resume(
     db.delete(resume)
     db.commit()
     return {"message": "Resume deleted"}
+
+
+@app.get("/resumes/{resume_id}/pdf")
+def download_resume_pdf(
+    resume_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Get resume data
+    resume = db.query(models.Resume).filter(
+        models.Resume.id == resume_id, 
+        models.Resume.user_id == current_user.id
+    ).first()
+    
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=72
+    )
+
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30
+    )
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=10,
+        textColor=colors.HexColor('#2c3e50')
+    )
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=12
+    )
+
+    # Build PDF content
+    elements = []
+    
+    # Header
+    elements.append(Paragraph(resume.title, title_style))
+    elements.append(Spacer(1, 12))
+    
+    # Contact Info
+    contact_data = [
+        [Paragraph(resume.full_name, normal_style)],
+        [Paragraph(resume.email, normal_style)],
+        [Paragraph(resume.phone, normal_style)]
+    ]
+    contact_table = Table(contact_data, colWidths=[400])
+    contact_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(contact_table)
+    elements.append(Spacer(1, 20))
+
+    # Summary
+    if resume.summary:
+        elements.append(Paragraph("Professional Summary", heading_style))
+        elements.append(Paragraph(resume.summary, normal_style))
+        elements.append(Spacer(1, 20))
+
+    # Experience
+    if resume.experience:
+        elements.append(Paragraph("Experience", heading_style))
+        experience_list = json.loads(resume.experience)
+        for exp in experience_list:
+            elements.append(Paragraph(f"<b>{exp['position']}</b> at {exp['company']}", normal_style))
+            elements.append(Paragraph(f"{exp['start_date']} - {exp['end_date']}", normal_style))
+            elements.append(Paragraph(exp['description'], normal_style))
+            elements.append(Spacer(1, 12))
+
+    # Education
+    if resume.education:
+        elements.append(Paragraph("Education", heading_style))
+        education_list = json.loads(resume.education)
+        for edu in education_list:
+            elements.append(Paragraph(f"<b>{edu['degree']}</b> from {edu['institution']}", normal_style))
+            elements.append(Paragraph(f"{edu['start_date']} - {edu['end_date']}", normal_style))
+            if edu.get('description'):
+                elements.append(Paragraph(edu['description'], normal_style))
+            elements.append(Spacer(1, 12))
+
+    # Skills
+    if resume.skills:
+        elements.append(Paragraph("Skills", heading_style))
+        skills_list = json.loads(resume.skills)
+        for skill in skills_list:
+            elements.append(Paragraph(f"<b>{skill['skill']}</b> - {skill['proficiency']}", normal_style))
+        elements.append(Spacer(1, 12))
+
+    # Generate PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Create a temporary file
+    filename = f"resume_{resume_id}.pdf"
+    with open(filename, 'wb') as f:
+        f.write(buffer.getvalue())
+    
+    # Return the file and clean up
+    response = FileResponse(
+        filename,
+        media_type='application/pdf',
+        filename=f"{resume.title.replace(' ', '_')}.pdf"
+    )
+    
+    # Schedule file deletion (cleanup)
+    def cleanup():
+        try:
+            os.remove(filename)
+        except:
+            pass
+            
+    response.background = cleanup
+    return response

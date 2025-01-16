@@ -189,8 +189,31 @@ export class ResumeListComponent implements OnInit {
     });
   }
 
+  
   downloadResume(resume: Resume) {
-    // This will be implemented with PDF generation
-    console.log('Downloading resume:', resume);
-  }
-}
+    this.resumeService.downloadResumePDF(resume.id!).subscribe({
+      next: (blob: Blob) => {
+        // Create a URL for the blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a link element
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${resume.title.replace(/\s+/g, '_')}.pdf`;
+        
+        // Append to body
+        document.body.appendChild(link);
+        
+        // Trigger download
+        link.click();
+        
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error) => {
+        console.error('Error downloading PDF:', error);
+        this.error = 'Failed to download PDF. Please try again.';
+      }
+    });
+}}
