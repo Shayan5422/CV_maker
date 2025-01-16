@@ -1,237 +1,511 @@
-<!-- src/app/resume-form/resume-form.component.html -->
-<div class="resume-form-container">
-    <div class="resume-form-card">
-      <h2>{{ isEditing ? 'Edit Resume' : 'Create New Resume' }}</h2>
-      <form [formGroup]="resumeForm" (ngSubmit)="onSubmit()">
-        <!-- Basic Information -->
-        <div class="form-section">
-          <h3>Basic Information</h3>
-          <div class="form-group">
-            <label for="title">Resume Title</label>
-            <input type="text" id="title" formControlName="title" [class.is-invalid]="submitted && f['title'].errors">
-            <div class="invalid-feedback" *ngIf="submitted && f['title'].errors">
-              <span *ngIf="f['title'].errors['required']">Title is required.</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="full_name">Full Name</label>
-            <input type="text" id="full_name" formControlName="full_name" [class.is-invalid]="submitted && f['full_name'].errors">
-            <div class="invalid-feedback" *ngIf="submitted && f['full_name'].errors">
-              <span *ngIf="f['full_name'].errors['required']">Full Name is required.</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" formControlName="email" [class.is-invalid]="submitted && f['email'].errors">
-            <div class="invalid-feedback" *ngIf="submitted && f['email'].errors">
-              <span *ngIf="f['email'].errors['required']">Email is required.</span>
-              <span *ngIf="f['email'].errors['email']">Please enter a valid email.</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="phone">Phone</label>
-            <input type="tel" id="phone" formControlName="phone" [class.is-invalid]="submitted && f['phone'].errors">
-            <div class="invalid-feedback" *ngIf="submitted && f['phone'].errors">
-              <span *ngIf="f['phone'].errors['required']">Phone is required.</span>
-              <span *ngIf="f['phone'].errors['pattern']">Please enter a valid phone number.</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="summary">Professional Summary</label>
-            <textarea id="summary" rows="4" formControlName="summary" [class.is-invalid]="submitted && f['summary'].errors"></textarea>
-            <div class="invalid-feedback" *ngIf="submitted && f['summary'].errors">
-              <span *ngIf="f['summary'].errors['required']">Summary is required.</span>
-            </div>
-          </div>
+<!-- resume-form.component.html -->
+<div class="min-h-screen bg-gray-100 py-8">
+    <div class="max-w-5xl mx-auto px-4">
+      <!-- Main Form Card -->
+      <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+        <!-- Header -->
+        <div class="flex items-center gap-3 mb-8 border-b pb-4">
+          <i class="fas fa-file-alt text-2xl text-blue-600"></i>
+          <h1 class="text-2xl font-semibold text-gray-800">
+            {{ isEditing ? 'Edit Resume' : 'Create New Resume' }}
+          </h1>
         </div>
-        
-        <!-- Experience Section -->
-        <div class="form-section">
-          <h3>Experience</h3>
-          <div formArrayName="experience">
-            <div *ngFor="let exp of experienceArray.controls; let i = index" [formGroupName]="i" class="array-section">
-              <div class="form-group">
-                <label for="company-{{ i }}">Company</label>
-                <input type="text" id="company-{{ i }}" formControlName="company" [class.is-invalid]="submitted && exp.get('company')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && exp.get('company')?.errors">
-                  <span *ngIf="exp.get('company')?.errors?.['required']">Company is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="position-{{ i }}">Position</label>
-                <input type="text" id="position-{{ i }}" formControlName="position" [class.is-invalid]="submitted && exp.get('position')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && exp.get('position')?.errors">
-                  <span *ngIf="exp.get('position')?.errors?.['required']">Position is required.</span>
-                </div>
-              </div>
-              <div class="form-group dates-group">
-                <div>
-                  <label for="start_date-{{ i }}">Start Date</label>
-                  <input type="date" id="start_date-{{ i }}" formControlName="start_date" [class.is-invalid]="submitted && exp.get('start_date')?.errors">
-                  <div class="invalid-feedback" *ngIf="submitted && exp.get('start_date')?.errors">
-                    <span *ngIf="exp.get('start_date')?.errors?.['required']">Start date is required.</span>
-                  </div>
-                </div>
-                <div>
-                  <label for="end_date-{{ i }}">End Date</label>
-                  <input type="date" id="end_date-{{ i }}" formControlName="end_date" [class.is-invalid]="submitted && exp.get('end_date')?.errors">
-                  <div class="invalid-feedback" *ngIf="submitted && exp.get('end_date')?.errors">
-                    <span *ngIf="exp.get('end_date')?.errors?.['required']">End date is required.</span>
-                  </div>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="description-{{ i }}">Description</label>
-                <textarea id="description-{{ i }}" rows="3" formControlName="description" [class.is-invalid]="submitted && exp.get('description')?.errors"></textarea>
-                <div class="invalid-feedback" *ngIf="submitted && exp.get('description')?.errors">
-                  <span *ngIf="exp.get('description')?.errors?.['required']">Description is required.</span>
-                </div>
-              </div>
-              <button type="button" class="btn btn-secondary btn-remove" (click)="removeExperience(i)">Remove Experience</button>
-            </div>
-          </div>
-          <button type="button" class="btn btn-primary" (click)="addExperience()">Add Experience</button>
-        </div>
-        
-        <!-- Education Section -->
-        <div class="form-section">
-          <h3>Education</h3>
-          <div formArrayName="education">
-            <div *ngFor="let edu of educationArray.controls; let j = index" [formGroupName]="j" class="array-section">
-              <div class="form-group">
-                <label for="institution-{{ j }}">Institution</label>
-                <input type="text" id="institution-{{ j }}" formControlName="institution" [class.is-invalid]="submitted && edu.get('institution')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && edu.get('institution')?.errors">
-                  <span *ngIf="edu.get('institution')?.errors?.['required']">Institution is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="degree-{{ j }}">Degree</label>
-                <input type="text" id="degree-{{ j }}" formControlName="degree" [class.is-invalid]="submitted && edu.get('degree')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && edu.get('degree')?.errors">
-                  <span *ngIf="edu.get('degree')?.errors?.['required']">Degree is required.</span>
-                </div>
-              </div>
-              <div class="form-group dates-group">
-                <div>
-                  <label for="edu-start_date-{{ j }}">Start Date</label>
-                  <input type="date" id="edu-start_date-{{ j }}" formControlName="start_date" [class.is-invalid]="submitted && edu.get('start_date')?.errors">
-                  <div class="invalid-feedback" *ngIf="submitted && edu.get('start_date')?.errors">
-                    <span *ngIf="edu.get('start_date')?.errors?.['required']">Start date is required.</span>
-                  </div>
-                </div>
-                <div>
-                  <label for="edu-end_date-{{ j }}">End Date</label>
-                  <input type="date" id="edu-end_date-{{ j }}" formControlName="end_date" [class.is-invalid]="submitted && edu.get('end_date')?.errors">
-                  <div class="invalid-feedback" *ngIf="submitted && edu.get('end_date')?.errors">
-                    <span *ngIf="edu.get('end_date')?.errors?.['required']">End date is required.</span>
-                  </div>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="edu-description-{{ j }}">Description</label>
-                <textarea id="edu-description-{{ j }}" rows="3" formControlName="description"></textarea>
-              </div>
-              <button type="button" class="btn btn-secondary btn-remove" (click)="removeEducation(j)">Remove Education</button>
-            </div>
-          </div>
-          <button type="button" class="btn btn-primary" (click)="addEducation()">Add Education</button>
-        </div>
-        
-        <!-- Skills Section -->
-        <div class="form-section">
-          <h3>Skills</h3>
-          <div formArrayName="skills">
-            <div *ngFor="let skill of skillsArray.controls; let k = index" [formGroupName]="k" class="array-section">
-              <div class="form-group">
-                <label for="skill-{{ k }}">Skill</label>
-                <input type="text" id="skill-{{ k }}" formControlName="skill" [class.is-invalid]="submitted && skill.get('skill')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && skill.get('skill')?.errors">
-                  <span *ngIf="skill.get('skill')?.errors?.['required']">Skill is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="proficiency-{{ k }}">Proficiency</label>
-                <input type="text" id="proficiency-{{ k }}" formControlName="proficiency" [class.is-invalid]="submitted && skill.get('proficiency')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && skill.get('proficiency')?.errors">
-                  <span *ngIf="skill.get('proficiency')?.errors?.['required']">Proficiency is required.</span>
-                </div>
-              </div>
-              <button type="button" class="btn btn-secondary btn-remove" (click)="removeSkill(k)">Remove Skill</button>
-            </div>
-          </div>
-          <button type="button" class="btn btn-primary" (click)="addSkill()">Add Skill</button>
-        </div>
-        
-        <!-- Projects Section -->
-        <div class="form-section">
-          <h3>Projects</h3>
-          <div formArrayName="projects">
-            <div *ngFor="let project of projectsArray.controls; let p = index" [formGroupName]="p" class="array-section">
-              <div class="form-group">
-                <label for="project-name-{{ p }}">Project Name</label>
-                <input type="text" id="project-name-{{ p }}" formControlName="name" [class.is-invalid]="submitted && project.get('name')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && project.get('name')?.errors">
-                  <span *ngIf="project.get('name')?.errors?.['required']">Project Name is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="project-description-{{ p }}">Description</label>
-                <textarea id="project-description-{{ p }}" rows="3" formControlName="description" [class.is-invalid]="submitted && project.get('description')?.errors"></textarea>
-                <div class="invalid-feedback" *ngIf="submitted && project.get('description')?.errors">
-                  <span *ngIf="project.get('description')?.errors?.['required']">Description is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="project-link-{{ p }}">Project Link (Optional)</label>
-                <input type="url" id="project-link-{{ p }}" formControlName="link">
-              </div>
-              <button type="button" class="btn btn-secondary btn-remove" (click)="removeProject(p)">Remove Project</button>
-            </div>
-          </div>
-          <button type="button" class="btn btn-primary" (click)="addProject()">Add Project</button>
-        </div>
-        
-        <!-- Certifications Section -->
-        <div class="form-section">
-          <h3>Certifications</h3>
-          <div formArrayName="certifications">
-            <div *ngFor="let cert of certificationsArray.controls; let c = index" [formGroupName]="c" class="array-section">
-              <div class="form-group">
-                <label for="cert-title-{{ c }}">Certification Title</label>
-                <input type="text" id="cert-title-{{ c }}" formControlName="title" [class.is-invalid]="submitted && cert.get('title')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && cert.get('title')?.errors">
-                  <span *ngIf="cert.get('title')?.errors?.['required']">Certification Title is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="cert-issuer-{{ c }}">Issuer</label>
-                <input type="text" id="cert-issuer-{{ c }}" formControlName="issuer" [class.is-invalid]="submitted && cert.get('issuer')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && cert.get('issuer')?.errors">
-                  <span *ngIf="cert.get('issuer')?.errors?.['required']">Issuer is required.</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="cert-date-{{ c }}">Date</label>
-                <input type="date" id="cert-date-{{ c }}" formControlName="date" [class.is-invalid]="submitted && cert.get('date')?.errors">
-                <div class="invalid-feedback" *ngIf="submitted && cert.get('date')?.errors">
-                  <span *ngIf="cert.get('date')?.errors?.['required']">Date is required.</span>
-                </div>
-              </div>
-              <button type="button" class="btn btn-secondary btn-remove" (click)="removeCertification(c)">Remove Certification</button>
-            </div>
-          </div>
-          <button type="button" class="btn btn-primary" (click)="addCertification()">Add Certification</button>
-        </div>
-        
-        <!-- Form Buttons -->
-        <div class="button-group">
-          <button type="submit" class="btn btn-primary" [disabled]="loading">
-            {{ loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update' : 'Create') }}
-          </button>
-          <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
-        </div>
-      </form>
-    </div>
-  </div>
   
+        <!-- Form -->
+        <form [formGroup]="resumeForm" (ngSubmit)="onSubmit()" class="space-y-8">
+          <!-- Basic Information -->
+          <section class="space-y-6 bg-gray-50 rounded-lg p-6">
+            <div class="flex items-center gap-2 border-b pb-4">
+              <i class="fas fa-user text-lg text-blue-600"></i>
+              <h2 class="text-xl font-medium">Basic Information</h2>
+            </div>
+  
+            <!-- Resume Title -->
+            <div class="form-group">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Resume Title</label>
+              <div class="relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-heading text-gray-400"></i>
+                </div>
+                <input
+                  type="text"
+                  formControlName="title"
+                  class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  [ngClass]="{'border-red-500': submitted && f['title'].errors}"
+                  placeholder="e.g. Senior Developer Resume"
+                >
+                <div *ngIf="submitted && f['title'].errors" class="mt-1 text-sm text-red-600">
+                  <span *ngIf="f['title'].errors['required']">Title is required</span>
+                </div>
+              </div>
+            </div>
+  
+            <!-- Name -->
+            <div class="form-group">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <div class="relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-user text-gray-400"></i>
+                </div>
+                <input
+                  type="text"
+                  formControlName="full_name"
+                  class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  [ngClass]="{'border-red-500': submitted && f['full_name'].errors}"
+                >
+                <div *ngIf="submitted && f['full_name'].errors" class="mt-1 text-sm text-red-600">
+                  <span *ngIf="f['full_name'].errors['required']">Full name is required</span>
+                </div>
+              </div>
+            </div>
+  
+            <!-- Contact Row -->
+            <div class="grid md:grid-cols-2 gap-6">
+              <!-- Email -->
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-envelope text-gray-400"></i>
+                  </div>
+                  <input
+                    type="email"
+                    formControlName="email"
+                    class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    [ngClass]="{'border-red-500': submitted && f['email'].errors}"
+                  >
+                  <div *ngIf="submitted && f['email'].errors" class="mt-1 text-sm text-red-600">
+                    <span *ngIf="f['email'].errors['required']">Email is required</span>
+                    <span *ngIf="f['email'].errors['email']">Invalid email format</span>
+                  </div>
+                </div>
+              </div>
+  
+              <!-- Phone -->
+              <div class="form-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-phone text-gray-400"></i>
+                  </div>
+                  <input
+                    type="tel"
+                    formControlName="phone"
+                    class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    [ngClass]="{'border-red-500': submitted && f['phone'].errors}"
+                  >
+                </div>
+              </div>
+            </div>
+  
+            <!-- Summary -->
+            <div class="form-group">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Professional Summary</label>
+              <textarea
+                rows="4"
+                formControlName="summary"
+                class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                [ngClass]="{'border-red-500': submitted && f['summary'].errors}"
+              ></textarea>
+            </div>
+          </section>
+  
+          <!-- Experience Section -->
+          <section formArrayName="experience" class="space-y-6 bg-gray-50 rounded-lg p-6">
+            <div class="flex items-center justify-between border-b pb-4">
+              <div class="flex items-center gap-2">
+                <i class="fas fa-briefcase text-lg text-blue-600"></i>
+                <h2 class="text-xl font-medium">Experience</h2>
+              </div>
+              <button type="button" 
+                      (click)="addExperience()" 
+                      class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                <i class="fas fa-plus"></i>
+                Add Experience
+              </button>
+            </div>
+  
+            <div *ngFor="let exp of experienceArray.controls; let i = index" 
+                 [formGroupName]="i" 
+                 class="bg-white rounded-lg shadow-sm p-6 relative">
+              <!-- Remove Button -->
+              <button type="button" 
+                      (click)="removeExperience(i)"
+                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+  
+              <!-- Experience Form Fields -->
+              <div class="grid gap-6">
+                <div class="grid md:grid-cols-2 gap-6">
+                  <!-- Company -->
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Company</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-building text-gray-400"></i>
+                      </div>
+                      <input type="text" 
+                             formControlName="company"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                             [ngClass]="{'border-red-500': submitted && exp.get('company')?.errors}">
+                    </div>
+                  </div>
+  
+                  <!-- Position -->
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-id-badge text-gray-400"></i>
+                      </div>
+                      <input type="text" 
+                             formControlName="position"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                             [ngClass]="{'border-red-500': submitted && exp.get('position')?.errors}">
+                    </div>
+                  </div>
+                </div>
+  
+                <!-- Dates -->
+                <div class="grid md:grid-cols-2 gap-6">
+                  <!-- Start Date -->
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-calendar text-gray-400"></i>
+                      </div>
+                      <input type="date" 
+                             formControlName="start_date"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                  </div>
+  
+                  <!-- End Date -->
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-calendar text-gray-400"></i>
+                      </div>
+                      <input type="date" 
+                             formControlName="end_date"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                  </div>
+                </div>
+  
+                <!-- Description -->
+                <div class="form-group">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea formControlName="description"
+                            rows="3"
+                            class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  </textarea>
+                </div>
+              </div>
+            </div>
+          </section>
+  
+          <!-- Education Section -->
+          <section formArrayName="education" class="space-y-6 bg-gray-50 rounded-lg p-6">
+            <div class="flex items-center justify-between border-b pb-4">
+              <div class="flex items-center gap-2">
+                <i class="fas fa-graduation-cap text-lg text-blue-600"></i>
+                <h2 class="text-xl font-medium">Education</h2>
+              </div>
+              <button type="button" 
+                      (click)="addEducation()"
+                      class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                <i class="fas fa-plus"></i>
+                Add Education
+              </button>
+            </div>
+  
+            <div *ngFor="let edu of educationArray.controls; let i = index"
+                 [formGroupName]="i"
+                 class="bg-white rounded-lg shadow-sm p-6 relative">
+              <!-- Remove Button -->
+              <button type="button"
+                      (click)="removeEducation(i)"
+                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+  
+              <!-- Education Form Fields -->
+              <div class="grid gap-6">
+                <!-- Institution & Degree -->
+                <div class="grid md:grid-cols-2 gap-6">
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Institution</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-university text-gray-400"></i>
+                      </div>
+                      <input type="text"
+                             formControlName="institution"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                  </div>
+  
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Degree</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-scroll text-gray-400"></i>
+                      </div>
+                      <input type="text"
+                             formControlName="degree"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                  </div>
+                </div>
+  
+                <!-- Dates -->
+                <div class="grid md:grid-cols-2 gap-6">
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-calendar text-gray-400"></i>
+                      </div>
+                      <input type="date"
+                             formControlName="start_date"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                  </div>
+  
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-calendar text-gray-400"></i>
+                          </div>
+                          <input type="date"
+                                 formControlName="end_date"
+                                 class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                      </div>
+                    </div>
+      
+                    <!-- Description -->
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <textarea formControlName="description"
+                               rows="3"
+                               class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </textarea>
+                    </div>
+                  </div>
+                </div>
+              </section>
+      
+              <!-- Skills Section -->
+              <section formArrayName="skills" class="space-y-6 bg-gray-50 rounded-lg p-6">
+                <div class="flex items-center justify-between border-b pb-4">
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-tools text-lg text-blue-600"></i>
+                    <h2 class="text-xl font-medium">Skills</h2>
+                  </div>
+                  <button type="button" 
+                          (click)="addSkill()"
+                          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                    <i class="fas fa-plus"></i>
+                    Add Skill
+                  </button>
+                </div>
+      
+                <div *ngFor="let skill of skillsArray.controls; let i = index"
+                     [formGroupName]="i"
+                     class="bg-white rounded-lg shadow-sm p-6 relative">
+                  <!-- Remove Button -->
+                  <button type="button"
+                          (click)="removeSkill(i)"
+                          class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+      
+                  <!-- Skill Form Fields -->
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Skill Name</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-star text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="skill"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </div>
+                    </div>
+      
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Proficiency</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-chart-bar text-gray-400"></i>
+                        </div>
+                        <select formControlName="proficiency"
+                                class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="">Select Proficiency</option>
+                          <option value="Beginner">Beginner</option>
+                          <option value="Intermediate">Intermediate</option>
+                          <option value="Advanced">Advanced</option>
+                          <option value="Expert">Expert</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+      
+              <!-- Projects Section -->
+              <section formArrayName="projects" class="space-y-6 bg-gray-50 rounded-lg p-6">
+                <div class="flex items-center justify-between border-b pb-4">
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-project-diagram text-lg text-blue-600"></i>
+                    <h2 class="text-xl font-medium">Projects</h2>
+                  </div>
+                  <button type="button" 
+                          (click)="addProject()"
+                          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                    <i class="fas fa-plus"></i>
+                    Add Project
+                  </button>
+                </div>
+      
+                <div *ngFor="let project of projectsArray.controls; let i = index"
+                     [formGroupName]="i"
+                     class="bg-white rounded-lg shadow-sm p-6 relative">
+                  <!-- Remove Button -->
+                  <button type="button"
+                          (click)="removeProject(i)"
+                          class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+      
+                  <!-- Project Form Fields -->
+                  <div class="grid gap-6">
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-folder text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="name"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </div>
+                    </div>
+      
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <textarea formControlName="description"
+                               rows="3"
+                               class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </textarea>
+                    </div>
+      
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Project Link (Optional)</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-link text-gray-400"></i>
+                        </div>
+                        <input type="url"
+                               formControlName="link"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+      
+              <!-- Certifications Section -->
+              <section formArrayName="certifications" class="space-y-6 bg-gray-50 rounded-lg p-6">
+                <div class="flex items-center justify-between border-b pb-4">
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-certificate text-lg text-blue-600"></i>
+                    <h2 class="text-xl font-medium">Certifications</h2>
+                  </div>
+                  <button type="button" 
+                          (click)="addCertification()"
+                          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                    <i class="fas fa-plus"></i>
+                    Add Certification
+                  </button>
+                </div>
+      
+                <div *ngFor="let cert of certificationsArray.controls; let i = index"
+                     [formGroupName]="i"
+                     class="bg-white rounded-lg shadow-sm p-6 relative">
+                  <!-- Remove Button -->
+                  <button type="button"
+                          (click)="removeCertification(i)"
+                          class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+      
+                  <!-- Certification Form Fields -->
+                  <div class="grid gap-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                      <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Certification Name</label>
+                        <div class="relative">
+                          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-award text-gray-400"></i>
+                          </div>
+                          <input type="text"
+                                 formControlName="title"
+                                 class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                      </div>
+      
+                      <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Issuing Organization</label>
+                        <div class="relative">
+                          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-building text-gray-400"></i>
+                          </div>
+                          <input type="text"
+                                 formControlName="issuer"
+                                 class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                      </div>
+                    </div>
+      
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Date Received</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-calendar-check text-gray-400"></i>
+                        </div>
+                        <input type="date"
+                               formControlName="date"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+      
+              <!-- Form Actions -->
+              <div class="flex justify-end gap-4 pt-6 border-t">
+                <button type="button"
+                        (click)="onCancel()"
+                        class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  <i class="fas fa-times"></i>
+                  Cancel
+                </button>
+                <button type="submit"
+                        [disabled]="loading"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <i class="fas" [class.fa-save]="!loading" [class.fa-spinner]="loading" [class.fa-spin]="loading"></i>
+                  {{ loading ? 'Saving...' : 'Save Resume' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
