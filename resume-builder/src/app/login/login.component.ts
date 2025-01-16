@@ -1,4 +1,3 @@
-// src/app/components/login/login.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
@@ -10,146 +9,122 @@ import { AuthService } from '../services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="login-container">
-      <div class="login-card">
-        <h2 class="text-center mb-4">Login</h2>
-        
-        @if (errorMessage) {
-          <div class="alert alert-danger">
-            {{ errorMessage }}
-          </div>
-        }
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center">
+      <div class="max-w-md w-full mx-auto space-y-8">
+        <!-- Header -->
+        <div class="text-center">
+          <h2 class="text-3xl font-bold text-gray-900">Welcome Back</h2>
+          <p class="mt-2 text-sm text-gray-600">
+            Sign in to manage your resumes
+          </p>
+        </div>
 
-        <form #loginForm="ngForm" (ngSubmit)="onSubmit()">
-          <div class="form-group">
-            <label for="email">Email:</label>
-            <input 
-              type="email" 
-              id="email"
-              class="form-control" 
-              [(ngModel)]="email" 
-              name="email" 
-              required 
-              email
-              #emailInput="ngModel">
+        <!-- Card Container -->
+        <div class="bg-white py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 space-y-6">
+          <!-- Error Message -->
+          @if (errorMessage) {
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-exclamation-circle text-red-500"></i>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-red-700">{{ errorMessage }}</p>
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Login Form -->
+          <form #loginForm="ngForm" (ngSubmit)="onSubmit()" class="space-y-6">
+            <!-- Email Field -->
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-envelope text-gray-400"></i>
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  [(ngModel)]="email"
+                  required
+                  email
+                  #emailInput="ngModel"
+                  class="block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  [ngClass]="{'border-red-500': emailInput.invalid && emailInput.touched, 'border-gray-300': !emailInput.invalid || !emailInput.touched}"
+                  placeholder="you@example.com"
+                >
+              </div>
               @if (emailInput.invalid && emailInput.touched) {
-                <div class="invalid-feedback">
+                <p class="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <i class="fas fa-exclamation-circle"></i>
                   Please enter a valid email address
-                </div>
+                </p>
               }
-          </div>
+            </div>
 
-          <div class="form-group">
-            <label for="password">Password:</label>
-            <input 
-              type="password" 
-              id="password"
-              class="form-control" 
-              [(ngModel)]="password" 
-              name="password" 
-              required
-              minlength="6"
-              #passwordInput="ngModel">
+            <!-- Password Field -->
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-lock text-gray-400"></i>
+                </div>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  [(ngModel)]="password"
+                  required
+                  minlength="6"
+                  #passwordInput="ngModel"
+                  class="block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  [ngClass]="{'border-red-500': passwordInput.invalid && passwordInput.touched, 'border-gray-300': !passwordInput.invalid || !passwordInput.touched}"
+                  placeholder="••••••••"
+                >
+              </div>
               @if (passwordInput.invalid && passwordInput.touched) {
-                <div class="invalid-feedback">
+                <p class="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <i class="fas fa-exclamation-circle"></i>
                   Password must be at least 6 characters long
-                </div>
+                </p>
               }
+            </div>
+
+            <!-- Submit Button -->
+            <div>
+              <button
+                type="submit"
+                [disabled]="loginForm.invalid || loading"
+                class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+                @if (loading) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Logging in...
+                } @else {
+                  <i class="fas fa-sign-in-alt"></i>
+                  Sign In
+                }
+              </button>
+            </div>
+          </form>
+
+          <!-- Register Link -->
+          <div class="text-sm text-center">
+            <span class="text-gray-600">Don't have an account?</span>
+            <a routerLink="/register" class="ml-1 font-medium text-blue-600 hover:text-blue-500 hover:underline">
+              Create an account
+            </a>
           </div>
-
-          <button 
-            type="submit" 
-            class="btn btn-primary btn-block"
-            [disabled]="loginForm.invalid || loading">
-            {{ loading ? 'Logging in...' : 'Login' }}
-          </button>
-        </form>
-
-        <div class="text-center mt-3">
-          <p>Don't have an account? <a routerLink="/register">Register</a></p>
         </div>
       </div>
     </div>
-  `,
-  styles: [`
-    .login-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      background-color: #f5f5f5;
-    }
-
-    .login-card {
-      background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 400px;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      
-      &.ng-invalid.ng-touched {
-        border-color: #dc3545;
-      }
-    }
-
-    .invalid-feedback {
-      color: #dc3545;
-      font-size: 0.875rem;
-      margin-top: 0.25rem;
-    }
-
-    .btn-block {
-      width: 100%;
-    }
-
-    .alert {
-      padding: 0.75rem 1.25rem;
-      margin-bottom: 1rem;
-      border: 1px solid transparent;
-      border-radius: 4px;
-
-      &.alert-danger {
-        color: #721c24;
-        background-color: #f8d7da;
-        border-color: #f5c6cb;
-      }
-    }
-
-    .btn-primary {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-
-      &:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-      }
-
-      &:hover:not(:disabled) {
-        background-color: #0056b3;
-      }
-    }
-  `]
+  `
 })
 export class LoginComponent {
   email = '';

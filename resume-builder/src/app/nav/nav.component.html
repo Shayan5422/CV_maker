@@ -1,15 +1,99 @@
-// src/app/components/nav/nav.component.html
-<nav class="navbar" *ngIf="authService.currentUserValue">
-    <div class="navbar-container">
-        <a routerLink="/resumes" class="navbar-brand">
-            Resume Builder
-        </a>
-
-        <div class="navbar-menu">
-            <a routerLink="/resumes" routerLinkActive="active">My Resumes</a>
-            <button class="btn btn-outline" (click)="logout()">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
+<!-- src/app/components/nav/nav.component.html -->
+<nav class="bg-white shadow-lg" *ngIf="authService.currentUserValue">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <!-- Left side - Logo and Brand -->
+        <div class="flex items-center">
+          <a routerLink="/resumes" class="flex items-center space-x-2">
+            <!-- Logo Icon -->
+            <i class="fas fa-file-alt text-2xl text-blue-600"></i>
+            <!-- Brand Name -->
+            <span class="text-xl font-semibold text-gray-900">Resume Builder</span>
+          </a>
         </div>
+  
+        <!-- Right side - Navigation and Actions -->
+        <div class="flex items-center space-x-6">
+          <!-- My Resumes Link -->
+          <a 
+            routerLink="/resumes" 
+            routerLinkActive="text-blue-600 border-b-2 border-blue-600"
+            class="flex items-center space-x-1 px-1 py-2 text-gray-700 hover:text-blue-600 transition-colors font-medium">
+            <i class="fas fa-folder"></i>
+            <span>My Resumes</span>
+          </a>
+  
+          <!-- User Menu Dropdown -->
+          <div class="relative">
+            <button 
+              (click)="toggleDropdown()"
+              class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 focus:outline-none">
+              <i class="fas fa-user-circle text-xl"></i>
+              <span class="font-medium">Account</span>
+              <i class="fas fa-chevron-down text-sm"></i>
+            </button>
+  
+            <!-- Dropdown Menu -->
+            <div 
+              *ngIf="isDropdownOpen"
+              class="absolute right-0 mt-2 w-48 py-2 bg-white rounded-lg shadow-xl border border-gray-100">
+              <!-- User Info -->
+              <div class="px-4 py-2 border-b border-gray-100">
+                <p class="text-sm text-gray-600">Signed in as</p>
+                <p class="text-sm font-medium text-gray-900 truncate">{{authService.currentUserValue?.email}}</p>
+              </div>
+  
+              <!-- Menu Items -->
+              <a 
+                routerLink="/profile" 
+                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                <i class="fas fa-user-cog mr-2"></i>
+                Profile Settings
+              </a>
+  
+              <button 
+                (click)="logout()" 
+                class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer flex items-center">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                Sign Out
+              </button>
+            </div>
+          </div>
+  
+          <!-- Mobile Menu Button (for responsive design) -->
+          <button 
+            (click)="toggleMobileMenu()"
+            class="md:hidden p-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-gray-100">
+            <i class="fas" [class.fa-bars]="!isMobileMenuOpen" [class.fa-times]="isMobileMenuOpen"></i>
+          </button>
+        </div>
+      </div>
+  
+      <!-- Mobile Menu -->
+      <div 
+        *ngIf="isMobileMenuOpen" 
+        class="md:hidden">
+        <div class="px-2 pt-2 pb-3 space-y-1">
+          <a 
+            routerLink="/resumes" 
+            routerLinkActive="bg-blue-50 text-blue-600"
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+            <i class="fas fa-folder mr-2"></i>
+            My Resumes
+          </a>
+          <a 
+            routerLink="/profile" 
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+            <i class="fas fa-user-cog mr-2"></i>
+            Profile Settings
+          </a>
+          <button 
+            (click)="logout()" 
+            class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50">
+            <i class="fas fa-sign-out-alt mr-2"></i>
+            Sign Out
+          </button>
+        </div>
+      </div>
     </div>
-</nav>
+  </nav>
