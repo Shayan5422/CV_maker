@@ -1,9 +1,9 @@
 // src/app/resume-form/resume-form.component.ts
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, FormArray, AbstractControl } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { CommonModule } from '@angular/common'; // necessary for *ngIf and *ngFor
-import { ReactiveFormsModule } from '@angular/forms'; // necessary for [formGroup] and form control directives
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule } from '@angular/forms';
 import { ResumeService } from '../services/resume.service';
 
 @Component({
@@ -32,9 +32,13 @@ export class ResumeFormComponent implements OnInit {
       email: ['', [Validators.required, Validators.email]],
       phone: ['', [Validators.required, Validators.pattern('^[0-9-+()\\s]*$')]],
       summary: ['', Validators.required],
+      // Experience and Education fields are maintained as FormArrays
       experience: this.formBuilder.array([this.createExperienceGroup()]),
       education: this.formBuilder.array([this.createEducationGroup()]),
-      skills: ['', Validators.required]
+      // New Sections:
+      skills: this.formBuilder.array([this.createSkillGroup()]),
+      projects: this.formBuilder.array([this.createProjectGroup()]),
+      certifications: this.formBuilder.array([this.createCertificationGroup()])
     });
   }
 
@@ -47,22 +51,32 @@ export class ResumeFormComponent implements OnInit {
     }
   }
 
-  // Getter for the main form controls
+  // Getters for form arrays
   get f() {
     return this.resumeForm.controls;
   }
 
-  // Getter for the experience FormArray
   get experienceArray(): FormArray {
     return this.resumeForm.get('experience') as FormArray;
   }
 
-  // Getter for the education FormArray
   get educationArray(): FormArray {
     return this.resumeForm.get('education') as FormArray;
   }
 
-  // Create a FormGroup for a single experience record.
+  get skillsArray(): FormArray {
+    return this.resumeForm.get('skills') as FormArray;
+  }
+
+  get projectsArray(): FormArray {
+    return this.resumeForm.get('projects') as FormArray;
+  }
+
+  get certificationsArray(): FormArray {
+    return this.resumeForm.get('certifications') as FormArray;
+  }
+
+  // Form group creators
   createExperienceGroup(): FormGroup {
     return this.formBuilder.group({
       company: ['', Validators.required],
@@ -73,7 +87,6 @@ export class ResumeFormComponent implements OnInit {
     });
   }
 
-  // Create a FormGroup for a single education record.
   createEducationGroup(): FormGroup {
     return this.formBuilder.group({
       institution: ['', Validators.required],
@@ -84,6 +97,30 @@ export class ResumeFormComponent implements OnInit {
     });
   }
 
+  createSkillGroup(): FormGroup {
+    return this.formBuilder.group({
+      skill: ['', Validators.required],
+      proficiency: ['', Validators.required]  // For example: Beginner, Intermediate, Expert
+    });
+  }
+
+  createProjectGroup(): FormGroup {
+    return this.formBuilder.group({
+      name: ['', Validators.required],
+      description: ['', Validators.required],
+      link: ['']  // Optional project URL
+    });
+  }
+
+  createCertificationGroup(): FormGroup {
+    return this.formBuilder.group({
+      title: ['', Validators.required],
+      issuer: ['', Validators.required],
+      date: ['', Validators.required]
+    });
+  }
+
+  // Methods to add or remove sections
   addExperience(): void {
     this.experienceArray.push(this.createExperienceGroup());
   }
@@ -104,67 +141,58 @@ export class ResumeFormComponent implements OnInit {
     }
   }
 
+  addSkill(): void {
+    this.skillsArray.push(this.createSkillGroup());
+  }
+
+  removeSkill(index: number): void {
+    if (this.skillsArray.length > 1) {
+      this.skillsArray.removeAt(index);
+    }
+  }
+
+  addProject(): void {
+    this.projectsArray.push(this.createProjectGroup());
+  }
+
+  removeProject(index: number): void {
+    if (this.projectsArray.length > 1) {
+      this.projectsArray.removeAt(index);
+    }
+  }
+
+  addCertification(): void {
+    this.certificationsArray.push(this.createCertificationGroup());
+  }
+
+  removeCertification(index: number): void {
+    if (this.certificationsArray.length > 1) {
+      this.certificationsArray.removeAt(index);
+    }
+  }
+
+  // Parsing stored JSON strings into arrays for editing
   loadResume(): void {
     if (this.resumeId) {
       this.loading = true;
       this.resumeService.getResume(this.resumeId).subscribe({
         next: (resume: any) => {
-          // Patch the basic fields first
+          // Patch basic fields
           this.resumeForm.patchValue({
             title: resume.title,
             full_name: resume.full_name,
             email: resume.email,
             phone: resume.phone,
-            summary: resume.summary,
-            skills: resume.skills
+            summary: resume.summary
           });
-  
-          // Parse and update the experience array
-          if (resume.experience) {
-            try {
-              const experienceArray = JSON.parse(resume.experience);
-              if (Array.isArray(experienceArray)) {
-                this.experienceArray.clear();
-                experienceArray.forEach((exp: any) => {
-                  this.experienceArray.push(
-                    this.formBuilder.group({
-                      company: exp.company || '',
-                      position: exp.position || '',
-                      start_date: exp.start_date || '',
-                      end_date: exp.end_date || '',
-                      description: exp.description || ''
-                    })
-                  );
-                });
-              }
-            } catch (e) {
-              console.error('Failed to parse experience data:', e);
-            }
-          }
-  
-          // Parse and update the education array
-          if (resume.education) {
-            try {
-              const educationArray = JSON.parse(resume.education);
-              if (Array.isArray(educationArray)) {
-                this.educationArray.clear();
-                educationArray.forEach((edu: any) => {
-                  this.educationArray.push(
-                    this.formBuilder.group({
-                      institution: edu.institution || '',
-                      degree: edu.degree || '',
-                      start_date: edu.start_date || '',
-                      end_date: edu.end_date || '',
-                      description: edu.description || ''
-                    })
-                  );
-                });
-              }
-            } catch (e) {
-              console.error('Failed to parse education data:', e);
-            }
-          }
-  
+
+          // Parse JSON fields and populate FormArrays
+          this.populateFormArrayFromJSON(this.experienceArray, resume.experience, this.createExperienceGroup.bind(this));
+          this.populateFormArrayFromJSON(this.educationArray, resume.education, this.createEducationGroup.bind(this));
+          this.populateFormArrayFromJSON(this.skillsArray, resume.skills, this.createSkillGroup.bind(this));
+          this.populateFormArrayFromJSON(this.projectsArray, resume.projects, this.createProjectGroup.bind(this));
+          this.populateFormArrayFromJSON(this.certificationsArray, resume.certifications, this.createCertificationGroup.bind(this));
+          
           this.loading = false;
         },
         error: error => {
@@ -174,8 +202,34 @@ export class ResumeFormComponent implements OnInit {
       });
     }
   }
-  
 
+  // A helper method to populate a form array from a JSON field.
+  // If no data exists, it keeps the initial control.
+  populateFormArrayFromJSON(formArray: FormArray, jsonData: any, createGroup: () => FormGroup): void {
+    formArray.clear();
+    if (jsonData) {
+      try {
+        const data = JSON.parse(jsonData);
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach((item: any) => {
+            // Create a new group and patch the values
+            const group = createGroup();
+            group.patchValue(item);
+            formArray.push(group);
+          });
+        } else {
+          formArray.push(createGroup());
+        }
+      } catch (e) {
+        console.error('Error parsing JSON data:', e);
+        formArray.push(createGroup());
+      }
+    } else {
+      formArray.push(createGroup());
+    }
+  }
+
+  // On submit, convert FormArrays to JSON strings
   onSubmit(): void {
     this.submitted = true;
     if (this.resumeForm.invalid) {
@@ -183,11 +237,14 @@ export class ResumeFormComponent implements OnInit {
     }
     this.loading = true;
     const resumeData = this.resumeForm.value;
-    
-    // Convert the FormArrays into JSON strings before sending.
+
+    // Convert structured arrays to JSON strings
     resumeData.experience = JSON.stringify(resumeData.experience);
     resumeData.education = JSON.stringify(resumeData.education);
-  
+    resumeData.skills = JSON.stringify(resumeData.skills);
+    resumeData.projects = JSON.stringify(resumeData.projects);
+    resumeData.certifications = JSON.stringify(resumeData.certifications);
+
     if (this.isEditing && this.resumeId) {
       this.resumeService.updateResume(this.resumeId, resumeData).subscribe({
         next: () => this.router.navigate(['/resumes']),
@@ -206,8 +263,6 @@ export class ResumeFormComponent implements OnInit {
       });
     }
   }
-  
-  
 
   onCancel(): void {
     this.router.navigate(['/resumes']);

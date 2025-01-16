@@ -11,12 +11,12 @@ import schemas
 from database import SessionLocal, engine, Base
 from passlib.context import CryptContext
 
-# Create database tables
+# Create the database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS configuration: Adjust allowed origins as needed.
+# CORS configuration (adjust allowed origins as needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4200"],
@@ -33,7 +33,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Dependency: get database session
+# Dependency: Database session
 def get_db():
     db = SessionLocal()
     try:
@@ -72,7 +72,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     return user
 
-# --- User Endpoints ---
+# ----- User Endpoints -----
 @app.post("/register", response_model=schemas.User)
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
@@ -97,7 +97,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- Resume Endpoints ---
+# ----- Resume Endpoints -----
 @app.post("/resumes/", response_model=schemas.Resume)
 def create_resume(
     resume: schemas.ResumeCreate,

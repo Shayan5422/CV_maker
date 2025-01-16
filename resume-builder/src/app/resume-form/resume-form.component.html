@@ -10,83 +10,79 @@
             <label for="title">Resume Title</label>
             <input type="text" id="title" formControlName="title" [class.is-invalid]="submitted && f['title'].errors">
             <div class="invalid-feedback" *ngIf="submitted && f['title'].errors">
-              <span *ngIf="f['title'].errors?.['required']">Title is required.</span>
+              <span *ngIf="f['title'].errors['required']">Title is required.</span>
             </div>
           </div>
-  
           <div class="form-group">
             <label for="full_name">Full Name</label>
             <input type="text" id="full_name" formControlName="full_name" [class.is-invalid]="submitted && f['full_name'].errors">
             <div class="invalid-feedback" *ngIf="submitted && f['full_name'].errors">
-              <span *ngIf="f['full_name'].errors?.['required']">Full Name is required.</span>
+              <span *ngIf="f['full_name'].errors['required']">Full Name is required.</span>
             </div>
           </div>
-  
           <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" formControlName="email" [class.is-invalid]="submitted && f['email'].errors">
             <div class="invalid-feedback" *ngIf="submitted && f['email'].errors">
-              <span *ngIf="f['email'].errors?.['required']">Email is required.</span>
-              <span *ngIf="f['email'].errors?.['email']">Please enter a valid email.</span>
+              <span *ngIf="f['email'].errors['required']">Email is required.</span>
+              <span *ngIf="f['email'].errors['email']">Please enter a valid email.</span>
             </div>
           </div>
-  
           <div class="form-group">
             <label for="phone">Phone</label>
             <input type="tel" id="phone" formControlName="phone" [class.is-invalid]="submitted && f['phone'].errors">
             <div class="invalid-feedback" *ngIf="submitted && f['phone'].errors">
-              <span *ngIf="f['phone'].errors?.['required']">Phone number is required.</span>
-              <span *ngIf="f['phone'].errors?.['pattern']">Please enter a valid phone number.</span>
+              <span *ngIf="f['phone'].errors['required']">Phone is required.</span>
+              <span *ngIf="f['phone'].errors['pattern']">Please enter a valid phone number.</span>
             </div>
           </div>
-  
           <div class="form-group">
             <label for="summary">Professional Summary</label>
             <textarea id="summary" rows="4" formControlName="summary" [class.is-invalid]="submitted && f['summary'].errors"></textarea>
             <div class="invalid-feedback" *ngIf="submitted && f['summary'].errors">
-              <span *ngIf="f['summary'].errors?.['required']">Summary is required.</span>
+              <span *ngIf="f['summary'].errors['required']">Summary is required.</span>
             </div>
           </div>
         </div>
-  
+        
         <!-- Experience Section -->
         <div class="form-section">
           <h3>Experience</h3>
           <div formArrayName="experience">
             <div *ngFor="let exp of experienceArray.controls; let i = index" [formGroupName]="i" class="array-section">
               <div class="form-group">
-                <label for="company-{{i}}">Company</label>
-                <input type="text" id="company-{{i}}" formControlName="company" [class.is-invalid]="submitted && exp.get('company')?.errors">
+                <label for="company-{{ i }}">Company</label>
+                <input type="text" id="company-{{ i }}" formControlName="company" [class.is-invalid]="submitted && exp.get('company')?.errors">
                 <div class="invalid-feedback" *ngIf="submitted && exp.get('company')?.errors">
                   <span *ngIf="exp.get('company')?.errors?.['required']">Company is required.</span>
                 </div>
               </div>
               <div class="form-group">
-                <label for="position-{{i}}">Position</label>
-                <input type="text" id="position-{{i}}" formControlName="position" [class.is-invalid]="submitted && exp.get('position')?.errors">
+                <label for="position-{{ i }}">Position</label>
+                <input type="text" id="position-{{ i }}" formControlName="position" [class.is-invalid]="submitted && exp.get('position')?.errors">
                 <div class="invalid-feedback" *ngIf="submitted && exp.get('position')?.errors">
                   <span *ngIf="exp.get('position')?.errors?.['required']">Position is required.</span>
                 </div>
               </div>
               <div class="form-group dates-group">
                 <div>
-                  <label for="start_date-{{i}}">Start Date</label>
-                  <input type="date" id="start_date-{{i}}" formControlName="start_date" [class.is-invalid]="submitted && exp.get('start_date')?.errors">
+                  <label for="start_date-{{ i }}">Start Date</label>
+                  <input type="date" id="start_date-{{ i }}" formControlName="start_date" [class.is-invalid]="submitted && exp.get('start_date')?.errors">
                   <div class="invalid-feedback" *ngIf="submitted && exp.get('start_date')?.errors">
                     <span *ngIf="exp.get('start_date')?.errors?.['required']">Start date is required.</span>
                   </div>
                 </div>
                 <div>
-                  <label for="end_date-{{i}}">End Date</label>
-                  <input type="date" id="end_date-{{i}}" formControlName="end_date" [class.is-invalid]="submitted && exp.get('end_date')?.errors">
+                  <label for="end_date-{{ i }}">End Date</label>
+                  <input type="date" id="end_date-{{ i }}" formControlName="end_date" [class.is-invalid]="submitted && exp.get('end_date')?.errors">
                   <div class="invalid-feedback" *ngIf="submitted && exp.get('end_date')?.errors">
                     <span *ngIf="exp.get('end_date')?.errors?.['required']">End date is required.</span>
                   </div>
                 </div>
               </div>
               <div class="form-group">
-                <label for="description-{{i}}">Description</label>
-                <textarea id="description-{{i}}" rows="3" formControlName="description" [class.is-invalid]="submitted && exp.get('description')?.errors"></textarea>
+                <label for="description-{{ i }}">Description</label>
+                <textarea id="description-{{ i }}" rows="3" formControlName="description" [class.is-invalid]="submitted && exp.get('description')?.errors"></textarea>
                 <div class="invalid-feedback" *ngIf="submitted && exp.get('description')?.errors">
                   <span *ngIf="exp.get('description')?.errors?.['required']">Description is required.</span>
                 </div>
@@ -96,65 +92,139 @@
           </div>
           <button type="button" class="btn btn-primary" (click)="addExperience()">Add Experience</button>
         </div>
-  
+        
         <!-- Education Section -->
         <div class="form-section">
           <h3>Education</h3>
           <div formArrayName="education">
             <div *ngFor="let edu of educationArray.controls; let j = index" [formGroupName]="j" class="array-section">
               <div class="form-group">
-                <label for="institution-{{j}}">Institution</label>
-                <input type="text" id="institution-{{j}}" formControlName="institution" [class.is-invalid]="submitted && edu.get('institution')?.errors">
+                <label for="institution-{{ j }}">Institution</label>
+                <input type="text" id="institution-{{ j }}" formControlName="institution" [class.is-invalid]="submitted && edu.get('institution')?.errors">
                 <div class="invalid-feedback" *ngIf="submitted && edu.get('institution')?.errors">
                   <span *ngIf="edu.get('institution')?.errors?.['required']">Institution is required.</span>
                 </div>
               </div>
               <div class="form-group">
-                <label for="degree-{{j}}">Degree</label>
-                <input type="text" id="degree-{{j}}" formControlName="degree" [class.is-invalid]="submitted && edu.get('degree')?.errors">
+                <label for="degree-{{ j }}">Degree</label>
+                <input type="text" id="degree-{{ j }}" formControlName="degree" [class.is-invalid]="submitted && edu.get('degree')?.errors">
                 <div class="invalid-feedback" *ngIf="submitted && edu.get('degree')?.errors">
                   <span *ngIf="edu.get('degree')?.errors?.['required']">Degree is required.</span>
                 </div>
               </div>
               <div class="form-group dates-group">
                 <div>
-                  <label for="edu-start_date-{{j}}">Start Date</label>
-                  <input type="date" id="edu-start_date-{{j}}" formControlName="start_date" [class.is-invalid]="submitted && edu.get('start_date')?.errors">
+                  <label for="edu-start_date-{{ j }}">Start Date</label>
+                  <input type="date" id="edu-start_date-{{ j }}" formControlName="start_date" [class.is-invalid]="submitted && edu.get('start_date')?.errors">
                   <div class="invalid-feedback" *ngIf="submitted && edu.get('start_date')?.errors">
                     <span *ngIf="edu.get('start_date')?.errors?.['required']">Start date is required.</span>
                   </div>
                 </div>
                 <div>
-                  <label for="edu-end_date-{{j}}">End Date</label>
-                  <input type="date" id="edu-end_date-{{j}}" formControlName="end_date" [class.is-invalid]="submitted && edu.get('end_date')?.errors">
+                  <label for="edu-end_date-{{ j }}">End Date</label>
+                  <input type="date" id="edu-end_date-{{ j }}" formControlName="end_date" [class.is-invalid]="submitted && edu.get('end_date')?.errors">
                   <div class="invalid-feedback" *ngIf="submitted && edu.get('end_date')?.errors">
                     <span *ngIf="edu.get('end_date')?.errors?.['required']">End date is required.</span>
                   </div>
                 </div>
               </div>
               <div class="form-group">
-                <label for="edu-description-{{j}}">Description</label>
-                <textarea id="edu-description-{{j}}" rows="3" formControlName="description"></textarea>
+                <label for="edu-description-{{ j }}">Description</label>
+                <textarea id="edu-description-{{ j }}" rows="3" formControlName="description"></textarea>
               </div>
               <button type="button" class="btn btn-secondary btn-remove" (click)="removeEducation(j)">Remove Education</button>
             </div>
           </div>
           <button type="button" class="btn btn-primary" (click)="addEducation()">Add Education</button>
         </div>
-  
+        
         <!-- Skills Section -->
         <div class="form-section">
           <h3>Skills</h3>
-          <div class="form-group">
-            <label for="skills">List your skills (comma-separated)</label>
-            <textarea id="skills" rows="3" formControlName="skills" [class.is-invalid]="submitted && f['skills'].errors"></textarea>
-            <div class="invalid-feedback" *ngIf="submitted && f['skills'].errors">
-              <span *ngIf="f['skills'].errors?.['required']">Skills are required.</span>
+          <div formArrayName="skills">
+            <div *ngFor="let skill of skillsArray.controls; let k = index" [formGroupName]="k" class="array-section">
+              <div class="form-group">
+                <label for="skill-{{ k }}">Skill</label>
+                <input type="text" id="skill-{{ k }}" formControlName="skill" [class.is-invalid]="submitted && skill.get('skill')?.errors">
+                <div class="invalid-feedback" *ngIf="submitted && skill.get('skill')?.errors">
+                  <span *ngIf="skill.get('skill')?.errors?.['required']">Skill is required.</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="proficiency-{{ k }}">Proficiency</label>
+                <input type="text" id="proficiency-{{ k }}" formControlName="proficiency" [class.is-invalid]="submitted && skill.get('proficiency')?.errors">
+                <div class="invalid-feedback" *ngIf="submitted && skill.get('proficiency')?.errors">
+                  <span *ngIf="skill.get('proficiency')?.errors?.['required']">Proficiency is required.</span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-remove" (click)="removeSkill(k)">Remove Skill</button>
             </div>
           </div>
+          <button type="button" class="btn btn-primary" (click)="addSkill()">Add Skill</button>
         </div>
-  
-        <!-- Submit and Cancel Buttons -->
+        
+        <!-- Projects Section -->
+        <div class="form-section">
+          <h3>Projects</h3>
+          <div formArrayName="projects">
+            <div *ngFor="let project of projectsArray.controls; let p = index" [formGroupName]="p" class="array-section">
+              <div class="form-group">
+                <label for="project-name-{{ p }}">Project Name</label>
+                <input type="text" id="project-name-{{ p }}" formControlName="name" [class.is-invalid]="submitted && project.get('name')?.errors">
+                <div class="invalid-feedback" *ngIf="submitted && project.get('name')?.errors">
+                  <span *ngIf="project.get('name')?.errors?.['required']">Project Name is required.</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="project-description-{{ p }}">Description</label>
+                <textarea id="project-description-{{ p }}" rows="3" formControlName="description" [class.is-invalid]="submitted && project.get('description')?.errors"></textarea>
+                <div class="invalid-feedback" *ngIf="submitted && project.get('description')?.errors">
+                  <span *ngIf="project.get('description')?.errors?.['required']">Description is required.</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="project-link-{{ p }}">Project Link (Optional)</label>
+                <input type="url" id="project-link-{{ p }}" formControlName="link">
+              </div>
+              <button type="button" class="btn btn-secondary btn-remove" (click)="removeProject(p)">Remove Project</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" (click)="addProject()">Add Project</button>
+        </div>
+        
+        <!-- Certifications Section -->
+        <div class="form-section">
+          <h3>Certifications</h3>
+          <div formArrayName="certifications">
+            <div *ngFor="let cert of certificationsArray.controls; let c = index" [formGroupName]="c" class="array-section">
+              <div class="form-group">
+                <label for="cert-title-{{ c }}">Certification Title</label>
+                <input type="text" id="cert-title-{{ c }}" formControlName="title" [class.is-invalid]="submitted && cert.get('title')?.errors">
+                <div class="invalid-feedback" *ngIf="submitted && cert.get('title')?.errors">
+                  <span *ngIf="cert.get('title')?.errors?.['required']">Certification Title is required.</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="cert-issuer-{{ c }}">Issuer</label>
+                <input type="text" id="cert-issuer-{{ c }}" formControlName="issuer" [class.is-invalid]="submitted && cert.get('issuer')?.errors">
+                <div class="invalid-feedback" *ngIf="submitted && cert.get('issuer')?.errors">
+                  <span *ngIf="cert.get('issuer')?.errors?.['required']">Issuer is required.</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="cert-date-{{ c }}">Date</label>
+                <input type="date" id="cert-date-{{ c }}" formControlName="date" [class.is-invalid]="submitted && cert.get('date')?.errors">
+                <div class="invalid-feedback" *ngIf="submitted && cert.get('date')?.errors">
+                  <span *ngIf="cert.get('date')?.errors?.['required']">Date is required.</span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-remove" (click)="removeCertification(c)">Remove Certification</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" (click)="addCertification()">Add Certification</button>
+        </div>
+        
+        <!-- Form Buttons -->
         <div class="button-group">
           <button type="submit" class="btn btn-primary" [disabled]="loading">
             {{ loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update' : 'Create') }}

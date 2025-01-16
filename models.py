@@ -1,5 +1,5 @@
 # models.py
-from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -13,14 +13,17 @@ class User(Base):
 
 class Resume(Base):
     __tablename__ = "resumes"
+    
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     full_name = Column(String)
     email = Column(String)
     phone = Column(String)
     summary = Column(Text)
-    experience = Column(JSON)  # Store as JSON
-    education = Column(JSON)
-    skills = Column(Text)
+    experience = Column(Text)   # Will store JSON string of experience items
+    education = Column(Text)    # Will store JSON string of education items
+    skills = Column(Text)       # Will store JSON string of skills items
+    projects = Column(Text)     # Will store JSON string of project items
+    certifications = Column(Text)  # Will store JSON string of certification items
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="resumes")

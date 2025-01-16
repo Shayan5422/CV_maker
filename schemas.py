@@ -1,8 +1,8 @@
 # schemas.py
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from typing import Optional
 
-# --- User Schemas ---
+# ----- User Schemas -----
 class UserBase(BaseModel):
     email: EmailStr
 
@@ -13,18 +13,20 @@ class User(UserBase):
     id: int
 
     class Config:
-        from_attributes = True   # Pydantic v2; in v1, use orm_mode = True
+        from_attributes = True
 
-# --- Resume Schemas ---
+# ----- Resume Schemas -----
 class ResumeBase(BaseModel):
     title: str
     full_name: str
     email: EmailStr
     phone: str
     summary: str
-    experience: str   # Expecting a string. If you plan to store structured data, change this type.
-    education: str
-    skills: str
+    experience: str       # JSON string, representing an array of experience items
+    education: str        # JSON string, representing an array of education items
+    skills: str           # JSON string, representing an array of skills entries
+    projects: str         # JSON string, representing an array of project items
+    certifications: str   # JSON string, representing an array of certification items
 
 class ResumeCreate(ResumeBase):
     pass
