@@ -196,398 +196,308 @@ def delete_resume(
     return {"message": "Resume deleted"}
 
 
+def round_corners(image, radius=40):
+    """
+    تابعی برای گرد کردن گوشه‌های تصویر پروفایل. 
+    اگر عکس نهایی گوشه‌گرد نمی‌خواهید، این تابع را حذف کنید.
+    """
+    circle = Image.new('L', (radius*2, radius*2), 0)
+    draw = ImageDraw.Draw(circle)
+    draw.ellipse((0, 0, radius*2, radius*2), fill=255)
+    alpha = Image.new('L', image.size, 255)
+    w, h = image.size
+
+    # چهارگوشهٔ تصویر را گرد می‌کند
+    alpha.paste(circle.crop((0,0,radius,radius)), (0, 0))
+    alpha.paste(circle.crop((radius,0,radius*2,radius)), (w-radius, 0))
+    alpha.paste(circle.crop((0,radius,radius,radius*2)), (0, h-radius))
+    alpha.paste(circle.crop((radius,radius,radius*2,radius*2)), (w-radius, h-radius))
+    image.putalpha(alpha)
+    return image
+
+
 @app.get("/resumes/{resume_id}/pdf")
 async def download_resume_pdf(
     resume_id: int,
     background_tasks: BackgroundTasks,
-    theme: str = Query(None, description="Theme ID for the PDF"),
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),               # وابستگی پایگاه داده
+    current_user: models.User = Depends(get_current_user),  # وابستگی احراز هویت
 ):
+    # ۱) رزومه را از دیتابیس بخوانید
     resume = db.query(models.Resume).filter(
-        models.Resume.id == resume_id, 
+        models.Resume.id == resume_id,
         models.Resume.user_id == current_user.id
     ).first()
-    
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # Define themes
-    themes = {
-        "modern-blue": {
-            "colors": {
-                "primary": "#2563eb",
-                "secondary": "#1d4ed8",
-                "background": "#f8fafc",
-                "text": "#1e293b",
-                "accent": "#60a5fa",
-                "sidebar": "#1e3a8a"
-            },
-            "fonts": {
-                "title": "Helvetica-Bold",
-                "heading": "Helvetica-Bold",
-                "normal": "Helvetica"
-            }
-        },
-        "elegant-dark": {
-            "colors": {
-                "primary": "#334155",
-                "secondary": "#1e293b",
-                "background": "#f1f5f9",
-                "text": "#0f172a",
-                "accent": "#94a3b8",
-                "sidebar": "#0f172a"
-            },
-            "fonts": {
-                "title": "Times-Bold",
-                "heading": "Times-Bold",
-                "normal": "Times-Roman"
-            }
-        },
-        "creative-purple": {
-            "colors": {
-                "primary": "#7c3aed",
-                "secondary": "#6d28d9",
-                "background": "#faf5ff",
-                "text": "#2e1065",
-                "accent": "#a78bfa",
-                "sidebar": "#5b21b6"
-            },
-            "fonts": {
-                "title": "Helvetica-Bold",
-                "heading": "Helvetica-Bold",
-                "normal": "Helvetica"
-            }
-        }
-    }
-
-    selected_theme = themes.get(theme, themes["modern-blue"])
-
-    # Icons for various sections (using Unicode symbols)
-    icons = {
-        'phone': '☎',  
-        'email': '✉',
-        'location': '⌖',
-        'education': '◆',
-        'experience': '▶',
-        'skills': '★',
-        'languages': '◈',
-        'projects': '▣',
-        'interests': '❖',
-        'certifications': '❋',
-        'awards': '✯'
-    }
-
+    # ۲) نام فایل موقت
     timestamp = int(datetime.now().timestamp())
     filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
-    
+
+    # ۳) داده‌های رزومه را استخراج کنیم
+    #    اینجا فرض می‌کنیم فیلدهایی شبیه name, title, phone, email, summary, skills, experience... دارید:
+    name = resume.full_name or "نام کامل"
+    job_title = resume.title or "عنوان شغل/موقعیت"
+    phone = resume.phone or ""
+    email = resume.email or ""
+    summary_text = resume.summary or ""
+    photo_data = resume.photo  # ممکن است base64 یا URL یا مسیر فایل باشد
+
+    # تجربه‌های کاری یا تحصیلات یا مهارت‌ها ممکن است در قالب JSON باشند:
+    experiences = []
+    educations = []
+    skills_list = []
+    # اگر در دیتابیس JSON ذخیره شده، آن را تبدیل به دیکشنری/لیست کنیم
+    import json
+    if resume.experience:
+        try:
+            experiences = json.loads(resume.experience)
+        except:
+            pass
+    if resume.education:
+        try:
+            educations = json.loads(resume.education)
+        except:
+            pass
+    if resume.skills:
+        try:
+            skills_list = json.loads(resume.skills)  # [{"skill":"Python","proficiency":"Expert"}, ...]
+        except:
+            pass
+
+    # ۴) ساخت استایل‌ها با reportlab
+    styles = getSampleStyleSheet()
+
+    # استایل بزرگ برای نام
+    name_style = ParagraphStyle(
+        'NameStyle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        leading=22,
+        textColor=colors.HexColor('#333333'),
+        spaceAfter=6
+    )
+    # استایل برای عنوان شغلی
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading2'],
+        fontSize=12,
+        textColor=colors.HexColor('#666666'),
+        spaceAfter=10
+    )
+    # استایل برای اطلاعات تماس
+    contact_style = ParagraphStyle(
+        'ContactStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#555555'),
+        leading=12
+    )
+    # استایل بخش‌های داخلی
+    section_heading_style = ParagraphStyle(
+        'SectionHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#222222'),
+        spaceBefore=10,
+        spaceAfter=4
+    )
+    # متن عادی
+    body_style = ParagraphStyle(
+        'BodyStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=12,
+        textColor=colors.HexColor('#333333')
+    )
+    # متن راهنما (تاریخ، لینک، ...)
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#777777')
+    )
+
     try:
-        # Create a PDF document with margins
+        # ۵) ایجاد سند PDF
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
-            rightMargin=0,
-            leftMargin=0,
-            topMargin=-6,
-            bottomMargin=0
-        )
-        
-        styles = getSampleStyleSheet()
-        
-        # Custom styles
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=22,
-            spaceAfter=16,
-            alignment=1,
-            textColor=colors.HexColor(selected_theme["colors"]["primary"]),
-            fontName=selected_theme["fonts"]["title"]
-        )
-        
-        heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceBefore=10,
-            spaceAfter=6,
-            textColor=colors.HexColor(selected_theme["colors"]["secondary"]),
-            fontName=selected_theme["fonts"]["heading"]
-        )
-        
-        sidebar_heading_style = ParagraphStyle(
-            'SidebarHeading',
-            parent=styles['Heading3'],
-            fontSize=12,
-            spaceBefore=8,
-            spaceAfter=4,
-            textColor=colors.white,
-            fontName=selected_theme["fonts"]["heading"]
-        )
-        
-        normal_style = ParagraphStyle(
-            'CustomNormal',
-            parent=styles['Normal'],
-            fontSize=10,
-            spaceAfter=6,
-            textColor=colors.HexColor(selected_theme["colors"]["text"]),
-            fontName=selected_theme["fonts"]["normal"]
-        )
-        
-        sidebar_text_style = ParagraphStyle(
-            'SidebarText',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.white,
-            fontName=selected_theme["fonts"]["normal"],
-            spaceBefore=2,
-            spaceAfter=4
-        )
-        
-        info_style = ParagraphStyle(
-            'InfoStyle',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor(selected_theme["colors"]["accent"]),
-            fontName=selected_theme["fonts"]["normal"]
+            rightMargin=0, leftMargin=0,
+            topMargin=20, bottomMargin=10
         )
 
-        # Create a list to hold the PDF elements
         elements = []
 
-        # ============================
-        # Build the Contact Sidebar
-        # ============================
-        sidebar_elements = []
+        # -------------------------
+        # (الف) هدر بالا (شامل نام، عنوان شغلی، اطلاعات تماس)
+        # -------------------------
+        header_left = []  # ستون چپ: نام و عنوان
+        
+        header_left.append(Paragraph(job_title, title_style))
 
-        # Add Photo if exists
-        if resume.photo:
+        header_right = []  # ستون راست: تلفن، ایمیل، ...
+        if phone:
+            header_right.append(Paragraph(phone, contact_style))
+        if email:
+            header_right.append(Paragraph(email, contact_style))
+
+        header_table_data = [
+            [header_left, header_right]
+        ]
+        header_table = Table(header_table_data, colWidths=[3*inch, 3*inch])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ]))
+
+        # خط افقی زیر هدر
+        line_data = [['']]
+        line_table = Table(line_data, colWidths=[6*inch])
+        line_table.setStyle(TableStyle([
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#999999')),
+        ]))
+
+        # -------------------------
+        # (ب) ساخت دو ستون اصلی در بدنه
+        # ستون چپ (پروفایل، عکس، خلاصه، مهارت‌ها...) 
+        # ستون راست (تجربیات، تحصیلات...)
+        # -------------------------
+        left_column = []
+
+        # -- عکس پروفایل:
+        if photo_data:
             try:
-                # Check if photo is a base64 image string
-                if resume.photo.startswith("data:image"):
-                    header, encoded = resume.photo.split(",", 1)
+                pil_image = None
+                if photo_data.startswith('data:image'):
+                    # اگر base64 بود
+                    header, encoded = photo_data.split(',', 1)
                     img_data = base64.b64decode(encoded)
-                    with io.BytesIO(img_data) as img_buffer:
-                        pil_image = Image.open(img_buffer).convert("RGBA")
+                    pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
                 else:
-                    # Otherwise, assume it's a URL or file path
-                    pil_image = Image.open(resume.photo).convert("RGBA")
+                    # در غیر این صورت فرض می‌کنیم مسیر فایل است
+                    pil_image = Image.open(photo_data).convert('RGBA')
 
-                # Process image: round its corners
-                def round_corners(im, radius):
-                    # Create a mask for rounded corners
-                    circle = Image.new('L', (radius * 2, radius * 2), 0)
-                    draw = ImageDraw.Draw(circle)
-                    draw.ellipse((0, 0, radius * 2, radius * 2), fill=255)
-                    alpha = Image.new('L', im.size, 255)
-                    w, h = im.size
+                # گوشه‌گرد
+                pil_image = round_corners(pil_image, 30)
+                buf = io.BytesIO()
+                pil_image.save(buf, format='PNG')
+                buf.seek(0)
+                rl_img = RLImage(buf, width=1.2*inch, height=1.2*inch)
 
-                    # Top-left corner
-                    alpha.paste(circle.crop((0, 0, radius, radius)), (0, 0))
-                    # Top-right corner
-                    alpha.paste(circle.crop((radius, 0, radius * 2, radius)), (w - radius, 0))
-                    # Bottom-left corner
-                    alpha.paste(circle.crop((0, radius, radius, radius * 2)), (0, h - radius))
-                    # Bottom-right corner
-                    alpha.paste(circle.crop((radius, radius, radius * 2, radius * 2)), (w - radius, h - radius))
-                    im.putalpha(alpha)
-                    return im
-
-                rounded_image = round_corners(pil_image, radius=20)
-                # Save the rounded image to an in-memory buffer
-                img_buffer = io.BytesIO()
-                rounded_image.save(img_buffer, format="PNG")
-                img_buffer.seek(0)
-                # Create ReportLab image from in-memory buffer
-                rl_img = RLImage(img_buffer, width=1.5*inch, height=1.5*inch)
-                sidebar_elements.append(rl_img)
-                sidebar_elements.append(Spacer(1, 12))
+                left_column.append(rl_img)
+                left_column.append(Spacer(1, 10))
             except Exception as e:
-                print(f"Error processing photo: {e}")
+                print("Error loading photo:", e)
 
-        # Add Contact information in the sidebar
-        sidebar_elements.append(Paragraph(f"{icons['email']} {resume.email}", sidebar_text_style))
-        if resume.phone:
-            sidebar_elements.append(Paragraph(f"{icons['phone']} {resume.phone}", sidebar_text_style))
-        # Additional contact details (location, etc.) can be added here
-        sidebar_elements.append(Spacer(1, 12))
+        # -- بخش خلاصه (Profile)
+        if summary_text.strip():
+            left_column.append(Paragraph("<b>+ Profile</b>", section_heading_style))
+            left_column.append(Paragraph(summary_text, body_style))
+            left_column.append(Spacer(1, 10))
+
+        # -- مهارت‌ها (چون در دیتابیس JSON داشتیم، احتمالاً [{"skill": "...", "proficiency": "..."}]):
+        if skills_list:
+            left_column.append(Paragraph("<b>+ Skills</b>", section_heading_style))
+            for s in skills_list:
+                skill_line = s['skill']
+                # اگر میزان تسلط هم داشت
+                if 'proficiency' in s:
+                    skill_line += f" ({s['proficiency']})"
+                left_column.append(Paragraph("• " + skill_line, body_style))
+            left_column.append(Spacer(1, 10))
+
+        # می‌توانید زبان‌ها، علاقه‌مندی‌ها یا سایر موارد را هم در همین ستون اضافه کنید
+
+        # ستون راست
+        right_column = []
         
-        # Optionally add certifications or other sidebar items
-        if resume.certifications:
-            sidebar_elements.append(Paragraph(f"{icons['certifications']} Certifications", sidebar_heading_style))
-            try:
-                certifications_list = json.loads(resume.certifications)
-                for cert in certifications_list:
-                    sidebar_elements.append(Paragraph(f"<b>{cert['title']}</b>", sidebar_text_style))
-                    sidebar_elements.append(Paragraph(f"{cert['issuer']} ({cert['date']})", sidebar_text_style))
-                sidebar_elements.append(Spacer(1, 12))
-            except json.JSONDecodeError:
-                print(f"Error parsing certifications JSON for resume {resume_id}")
+        # -- تجربیات
+        if experiences:
+            right_column.append(Paragraph("<b>+ Professional experience</b>", section_heading_style))
+            for exp in experiences:
+                # exp = {"position": "...", "company": "...", "start_date": "...", "end_date": "...", "description": "..."}
+                position = exp.get('position', '') 
+                company = exp.get('company', '')
+                start_date = exp.get('start_date', '')
+                end_date = exp.get('end_date', '')
+                desc = exp.get('description', '')
 
-        # ============================
-        # Build the Main Content
-        # ============================
-        main_elements = []
-        main_elements.append(Paragraph(resume.title, title_style))
-        main_elements.append(Spacer(1, 16))
-        if resume.summary and resume.summary.strip():
-            main_elements.append(Paragraph("Professional Summary", heading_style))
-            main_elements.append(Paragraph(resume.summary, normal_style))
-            main_elements.append(Spacer(1, 16))
-        
-        if resume.experience:
-            main_elements.append(Paragraph(f"{icons['experience']} Professional Experience", heading_style))
-            try:
-                experience_list = json.loads(resume.experience)
-                for exp in experience_list:
-                    main_elements.append(
-                        Paragraph(
-                            f"<b>{exp['position']}</b> at <b>{exp['company']}</b>", 
-                            normal_style
-                        )
-                    )
-                    main_elements.append(
-                        Paragraph(
-                            f"{exp['start_date']} - {exp['end_date']}", 
-                            info_style
-                        )
-                    )
-                    main_elements.append(Paragraph(exp['description'], normal_style))
-                    main_elements.append(Spacer(1, 8))
-            except json.JSONDecodeError:
-                print(f"Error parsing experience JSON for resume {resume_id}")
+                # سطر تیتر
+                right_column.append(Paragraph(f"<b>{position}</b> - {company}", body_style))
+                # تاریخ
+                date_info = f"{start_date} - {end_date}"
+                right_column.append(Paragraph(date_info, info_style))
+                # توضیحات
+                if desc.strip():
+                    right_column.append(Paragraph(desc, body_style))
+                right_column.append(Spacer(1, 8))
 
-        if resume.education:
-            main_elements.append(Paragraph(f"{icons['education']} Education", heading_style))
-            try:
-                education_list = json.loads(resume.education)
-                for edu in education_list:
-                    main_elements.append(
-                        Paragraph(
-                            f"<b>{edu['degree']}</b> - {edu['institution']}", 
-                            normal_style
-                        )
-                    )
-                    main_elements.append(
-                        Paragraph(
-                            f"{edu['start_date']} - {edu['end_date']}", 
-                            info_style
-                        )
-                    )
-                    if edu.get('description'):
-                        main_elements.append(Paragraph(edu['description'], normal_style))
-                    main_elements.append(Spacer(1, 8))
-            except json.JSONDecodeError:
-                print(f"Error parsing education JSON for resume {resume_id}")
+        # -- تحصیلات
+        if educations:
+            right_column.append(Paragraph("<b>+ Education</b>", section_heading_style))
+            for edu in educations:
+                # edu = {"degree": "...", "institution": "...", "start_date": "...", "end_date": "...", "description": "..."}
+                deg = edu.get('degree', '')
+                inst = edu.get('institution', '')
+                sd = edu.get('start_date', '')
+                ed = edu.get('end_date', '')
+                dsc = edu.get('description', '')
 
-        if resume.projects:
-            main_elements.append(Paragraph(f"{icons['projects']} Projects", heading_style))
-            try:
-                projects_list = json.loads(resume.projects)
-                for project in projects_list:
-                    main_elements.append(
-                        Paragraph(f"<b>{project['name']}</b>", normal_style)
-                    )
-                    main_elements.append(Paragraph(project['description'], normal_style))
-                    if project.get('link'):
-                        main_elements.append(
-                            Paragraph(f"Link: {project['link']}", info_style)
-                        )
-                    main_elements.append(Spacer(1, 8))
-            except json.JSONDecodeError:
-                print(f"Error parsing projects JSON for resume {resume_id}")
+                right_column.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style))
+                date_info = f"{sd} - {ed}"
+                right_column.append(Paragraph(date_info, info_style))
+                if dsc.strip():
+                    right_column.append(Paragraph(dsc, body_style))
+                right_column.append(Spacer(1, 8))
 
-        if resume.skills:
-            main_elements.append(Paragraph(f"{icons['skills']} Skills", heading_style))
-            try:
-                skills_list = json.loads(resume.skills)
-                skills_formatted = ", ".join([f"{s['skill']} ({s['proficiency']})" for s in skills_list])
-                main_elements.append(Paragraph(skills_formatted, normal_style))
-                main_elements.append(Spacer(1, 8))
-            except json.JSONDecodeError:
-                print(f"Error parsing skills JSON for resume {resume_id}")
+        # ساخت جدول دو ستونی
+        body_table_data = [
+            [left_column, right_column]
+        ]
+        body_table = Table(body_table_data, colWidths=[2.5*inch, 5*inch])
+        body_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            # خط عمودی بین دو ستون
+            ('LINEBEFORE', (1,0), (1,-1), 1, colors.HexColor('#aaaaaa')),
+            # پدینگ
+            ('LEFTPADDING', (0,0), (0,0), 6),
+            ('RIGHTPADDING', (0,0), (0,0), 10),
+            ('LEFTPADDING', (1,0), (1,0), 10),
+            ('RIGHTPADDING', (1,0), (1,0), 6),
+        ]))
 
-        # ============================
-        # Layout: Sidebar & Main Column via Table
-        # ============================
-        page_width, page_height = A4
-        sidebar_width = page_width * 0.28
-        main_width = page_width * 0.72
+        # مونتاژ نهایی
+        elements.append(header_table)
+        elements.append(Spacer(1, 6))
+        elements.append(line_table)
+        elements.append(Spacer(1, 12))
+        elements.append(body_table)
 
-        # اضافه کردن سلول‌های خالی به سایدبار برای پر کردن کل ارتفاع
-        min_rows = 110  # تعداد حداقل سطرها برای پوشش کل صفحه
-        while len(sidebar_elements) < min_rows:
-            sidebar_elements.append(Spacer(1, 12))
-
-        # تبدیل المان‌ها به محتوای جدول
-        sidebar_content = [[element] for element in sidebar_elements]
-        main_content = [[element] for element in main_elements]
-
-        # اطمینان از برابری تعداد سطرها
-        max_rows = max(len(sidebar_content), len(main_content), min_rows)
-        while len(sidebar_content) < max_rows:
-            sidebar_content.append([''])
-        while len(main_content) < max_rows:
-            main_content.append([''])
-
-        # ترکیب محتوا در جدول نهایی
-        table_data = []
-        
-        # ابتدا یک ردیف برای کل سایدبار
-        sidebar_data = []
-        for item in sidebar_elements:
-            if isinstance(item, Spacer):
-                sidebar_data.append(Paragraph("<br/>", sidebar_text_style))
-            else:
-                sidebar_data.append(item)
-        
-        # یک ردیف با دو ستون: سایدبار و محتوای اصلی
-        main_data = []
-        for item in main_elements:
-            if isinstance(item, Spacer):
-                main_data.append(Paragraph("<br/>", normal_style))
-            else:
-                main_data.append(item)
-                
-        table_data.append([
-            sidebar_data,  # ستون سایدبار
-            main_data     # ستون محتوای اصلی
-        ])
-
-        # ایجاد جدول با استایل
-        table = Table(table_data, colWidths=[sidebar_width, main_width])
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor(selected_theme["colors"]["sidebar"])),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('NOSPLIT', (0, 0), (-1, -1)),
-        ])
-        table.setStyle(table_style)
-
-        elements.append(table)
+        # ساخت PDF
         doc.build(elements)
 
+        # پس از ساخت، با استفاده از BackgroundTasks فایل موقت را پاک می‌کنیم
         def cleanup():
             try:
                 if os.path.exists(filename):
-                    os.unlink(filename)
-            except Exception as e:
-                print(f"Error cleaning up file {filename}: {e}")
+                    os.remove(filename)
+            except:
+                pass
 
         background_tasks.add_task(cleanup)
 
+        # برگرداندن فایل به صورت دانلود
         return FileResponse(
             path=filename,
             media_type='application/pdf',
-            filename=f"{resume.title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            filename=f"{(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
         )
+
     except Exception as e:
+        # در صورت خطا، فایل را پاک کنید
         if os.path.exists(filename):
-            os.unlink(filename)
+            os.remove(filename)
         raise HTTPException(
             status_code=500,
             detail=f"Error generating PDF: {str(e)}"
