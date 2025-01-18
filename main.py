@@ -237,7 +237,7 @@ async def download_resume_pdf(
 
     # ۳) داده‌های رزومه را استخراج کنیم
     #    اینجا فرض می‌کنیم فیلدهایی شبیه name, title, phone, email, summary, skills, experience... دارید:
-    name = resume.full_name or "نام کامل"
+    name = resume.full_name or "نام شما"
     job_title = resume.title or "عنوان شغل/موقعیت"
     phone = resume.phone or ""
     email = resume.email or ""
@@ -334,7 +334,7 @@ async def download_resume_pdf(
         # (الف) هدر بالا (شامل نام، عنوان شغلی، اطلاعات تماس)
         # -------------------------
         header_left = []  # ستون چپ: نام و عنوان
-        
+        header_left.append(Paragraph(name, name_style))
         header_left.append(Paragraph(job_title, title_style))
 
         header_right = []  # ستون راست: تلفن، ایمیل، ...
@@ -379,7 +379,7 @@ async def download_resume_pdf(
                     pil_image = Image.open(photo_data).convert('RGBA')
 
                 # گوشه‌گرد
-                pil_image = round_corners(pil_image, 30)
+                pil_image = round_corners(pil_image, 50)
                 buf = io.BytesIO()
                 pil_image.save(buf, format='PNG')
                 buf.seek(0)
@@ -491,7 +491,7 @@ async def download_resume_pdf(
         return FileResponse(
             path=filename,
             media_type='application/pdf',
-            filename=f"{(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            filename=f"{name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
         )
 
     except Exception as e:
