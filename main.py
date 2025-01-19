@@ -1,5 +1,6 @@
 # main.py
 import base64
+from fileinput import filename
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -216,15 +217,48 @@ def round_corners(image, radius=40):
     return image
 
 
+def draw_vertical_line(canvas, doc, line_color=colors.HexColor('#AAAAAA')):
+    """
+    Draw a vertical line that extends the full page height regardless of content
+    """
+    canvas.saveState()
+    canvas.setStrokeColor(line_color)
+    canvas.setLineWidth(0.5)
+    
+    # X position for the vertical line (2.5 inches from left margin)
+    x_pos = 2.5 * inch
+    
+    # Draw from bottom of page to top, regardless of content
+    canvas.line(x_pos, 0, x_pos, A4[1])
+    
+    # Ensure the line is drawn on top of everything
+    canvas.setLineWidth(0.5)
+    canvas.setStrokeColor(line_color)
+    canvas.line(x_pos, 0, x_pos, A4[1])
+    
+    canvas.restoreState()
+
+# Modify the SimpleDocTemplate initialization to use the updated vertical line
+doc = SimpleDocTemplate(
+    filename,
+    pagesize=A4,
+    rightMargin=0,
+    leftMargin=0,
+    topMargin=0,
+    bottomMargin=10,
+    # Apply vertical line to both first and subsequent pages
+    onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
+    onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
+)
+
 @app.get("/resumes/{resume_id}/pdf")
 async def download_resume_pdf(
     resume_id: int,
     background_tasks: BackgroundTasks,
-    theme: str = Query(None),  # مثلاً ?theme=elegant-dark
+    theme: str = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # ۱) رزومه را از DB می‌خوانیم:
     resume = db.query(models.Resume).filter(
         models.Resume.id == resume_id,
         models.Resume.user_id == current_user.id
@@ -232,47 +266,48 @@ async def download_resume_pdf(
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # ۲) فایل PDF موقت
     timestamp = int(datetime.now().timestamp())
     filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
 
-    # ۳) داده‌های رزومه
     name = resume.full_name or ""
     job_title = resume.title or ""
     phone = resume.phone or ""
     email = resume.email or ""
-    # address = resume.address or ""  # فرض می‌کنیم فیلد address داشته باشید
     summary_text = resume.summary or ""
     photo_data = resume.photo
 
-    # بارگذاری تجربیات، تحصیلات، مهارت‌ها و...
     def safe_load_json(json_str):
-        try: 
+        try:
             return json.loads(json_str)
         except:
             return []
+
     experiences = safe_load_json(resume.experience) if resume.experience else []
-    educations  = safe_load_json(resume.education)  if resume.education  else []
-    skills_list = safe_load_json(resume.skills)     if resume.skills     else []
-    projects    = safe_load_json(resume.projects)   if resume.projects   else []
+    educations = safe_load_json(resume.education) if resume.education else []
+    skills_list = safe_load_json(resume.skills) if resume.skills else []
+    projects = safe_load_json(resume.projects) if resume.projects else []
     certifications = safe_load_json(resume.certifications) if resume.certifications else []
 
-    # ۴) تشخیص تم
-    selected_theme = theme or ""  # اگر خالی بود یعنی تم پیش‌فرض
+    selected_theme = theme or ""
 
     try:
-        # ۵) ساخت سند PDF
+        # ------------------------------------------------
+        # Build the PDF
+        # ------------------------------------------------
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
-            rightMargin=0, leftMargin=0,
-            topMargin=0, bottomMargin=10
+            rightMargin=0,
+            leftMargin=0,
+            topMargin=0,
+            bottomMargin=10,
+            # Draw vertical line on every page
+            onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
+            onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
         )
         elements = []
 
-        # ---------------------------------------------------
-        # استایل‌های پیش‌فرض (روشن)
-        # ---------------------------------------------------
+        # Default (light) styles
         default_styles = getSampleStyleSheet()
 
         name_style_default = ParagraphStyle(
@@ -319,12 +354,8 @@ async def download_resume_pdf(
             textColor=colors.HexColor('#777777')
         )
 
-        # ---------------------------------------------------
-        # استایل‌های تم تیره (elegant-dark)
-        # ---------------------------------------------------
+        # Dark theme styles
         dark_styles = getSampleStyleSheet()
-
-        # در تصویر نمونه، هدر خیلی تیره (#333333)، و نوشته‌ها سفید
         name_style_dark = ParagraphStyle(
             'NameStyleDark',
             parent=dark_styles['Heading1'],
@@ -351,7 +382,7 @@ async def download_resume_pdf(
             'SectionHeadingDark',
             parent=dark_styles['Heading2'],
             fontSize=12,
-            textColor=colors.HexColor('#333333'),  # برای هدینگ روی پس‌زمینه روشن
+            textColor=colors.HexColor('#333333'),
             backColor=colors.HexColor('#F0F0F0'),
             spaceBefore=8,
             spaceAfter=6,
@@ -372,70 +403,55 @@ async def download_resume_pdf(
             textColor=colors.HexColor('#555555')
         )
 
-        # رنگ‌های خط‌کشی
         if selected_theme == "elegant-dark":
-            name_style      = name_style_dark
-            title_style     = title_style_dark
-            contact_style   = contact_style_dark
+            name_style = name_style_dark
+            title_style = title_style_dark
+            contact_style = contact_style_dark
             section_heading_style = section_heading_style_dark
-            body_style      = body_style_dark
-            info_style      = info_style_dark
+            body_style = body_style_dark
+            info_style = info_style_dark
 
-            # رنگ خط‌های جداکننده
             line_color = colors.HexColor('#FFFFFF')
             vertical_line_color = colors.HexColor('#EEEEEE')
         else:
-            # تم پیش‌فرض روشن
-            name_style      = name_style_default
-            title_style     = title_style_default
-            contact_style   = contact_style_default
+            name_style = name_style_default
+            title_style = title_style_default
+            contact_style = contact_style_default
             section_heading_style = section_heading_style_default
-            body_style      = body_style_default
-            info_style      = info_style_default
-            line_color      = colors.HexColor('#999999')
+            body_style = body_style_default
+            info_style = info_style_default
+
+            line_color = colors.HexColor('#999999')
             vertical_line_color = colors.HexColor('#AAAAAA')
 
-        # ---------------------------------------------------
-        # (الف) ساخت هدر تیره شبیه تصویر
-        # ---------------------------------------------------
+        # Header (dark theme example)
         if selected_theme == "elegant-dark":
-            try:
-                # محتوای هدر: نام، عنوان، اطلاعات تماس
-                header_content = []
-                header_content.append(Paragraph(name.upper(), name_style))
-                if job_title:
-                    header_content.append(Paragraph(job_title, title_style))
+            header_content = []
+            header_content.append(Paragraph(name.upper(), name_style))
+            if job_title:
+                header_content.append(Paragraph(job_title, title_style))
 
-                contact_info = []
-                if phone:
-                    contact_info.append(phone)
-                if email:
-                    contact_info.append(email)
+            contact_info = []
+            if phone:
+                contact_info.append(phone)
+            if email:
+                contact_info.append(email)
 
-                if contact_info:
-                    contact_text = " | ".join(contact_info)
-                    header_content.append(Paragraph(contact_text, contact_style))
+            if contact_info:
+                header_content.append(Paragraph(" | ".join(contact_info), contact_style))
 
-                # داده‌های جدول را یک‌جا می‌سازیم (۱ ردیف × ۱ ستون)
-                header_dark_data = [[header_content]]
-
-                # حالا جدول را روی این data می‌سازیم
-                header_dark = Table(header_dark_data, colWidths=[8*inch])
-                header_dark.setStyle(TableStyle([
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#333333')),
-                    ('LEFTPADDING', (0,0), (-1,-1), 20),
-                    ('RIGHTPADDING', (0,0), (-1,-1), 20),
-                    ('TOPPADDING', (0,0), (-1,-1), 16),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 16),
-                ]))
-
-                elements.append(header_dark)
-
-            except Exception as e:
-                print("Error creating dark header:", e)
-
+            header_dark_data = [[header_content]]
+            header_dark = Table(header_dark_data, colWidths=[8*inch])
+            header_dark.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#333333')),
+                ('LEFTPADDING', (0,0), (-1,-1), 20),
+                ('RIGHTPADDING', (0,0), (-1,-1), 20),
+                ('TOPPADDING', (0,0), (-1,-1), 16),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 16),
+            ]))
+            elements.append(header_dark)
         else:
-            # اگر تم پیش‌فرض است، یک هدر ساده مثل قبل (مثلاً نام و شماره تماس در بالا)
+            # Default header
             header_left = []
             header_left.append(Paragraph(name, name_style))
             header_left.append(Paragraph(job_title, title_style))
@@ -446,7 +462,6 @@ async def download_resume_pdf(
             if email:
                 header_right.append(Paragraph(email, contact_style))
 
-            # ساخت جدول هدر
             header_table_data = [[header_left, header_right]]
             header_table = Table(header_table_data, colWidths=[3.5*inch, 3.5*inch])
             header_table.setStyle(TableStyle([
@@ -457,82 +472,69 @@ async def download_resume_pdf(
             ]))
             elements.append(header_table)
 
-            # خط افقی زیر هدر
+            # Horizontal line under the header
             line_data = [['']]
             line_table = Table(line_data, colWidths=[7*inch])
             line_table.setStyle(TableStyle([
                 ('LINEBELOW', (0, 0), (-1, 0), 1, line_color),
             ]))
-            elements.append(Spacer(1,5))
+            elements.append(Spacer(1, 5))
             elements.append(line_table)
 
         elements.append(Spacer(1, 12))
 
         # ---------------------------------------------------
-        # (ب) ساخت محتوای اصلی: دو ستون (سمت چپ: پروفایل و مهارت‌ها، سمت راست: تجربه و تحصیلات و...)
+        # Two-column content
         # ---------------------------------------------------
-
         left_column = []
-        # اگر عکس داریم، نمایش دهیم
+
+        # Photo
         if photo_data:
             try:
-                # 1) لود کردن تصویر
                 if photo_data.startswith('data:image'):
-                    # اگر داده به صورت Base64 بود
                     header, encoded = photo_data.split(',', 1)
                     img_data = base64.b64decode(encoded)
                     pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
                 else:
-                    # اگر مسیر فایل بود
                     pil_image = Image.open(photo_data).convert('RGBA')
 
-                # 2) گرد کردن گوشه‌ها (در صورت نیاز)
                 pil_image = round_corners(pil_image, 40)
 
-                # 3) محاسبه‌ی ابعاد نهایی بر اساس بیشترین طول/عرض مجاز (مثلاً 1.3 اینچ) با حفظ نسبت
                 max_size = 1.3 * inch
                 width, height = pil_image.size
                 aspect_ratio = width / float(height)
 
                 if aspect_ratio > 1:
-                    # اگر تصویر حالت افقی دارد
                     new_width = max_size
                     new_height = max_size / aspect_ratio
                 else:
-                    # اگر تصویر حالت عمودی یا مربعی دارد
                     new_height = max_size
                     new_width = max_size * aspect_ratio
 
-                # 4) تبدیل تصویر به فایل بایت برای ساخت RLImage
                 buf = io.BytesIO()
                 pil_image.save(buf, format='PNG')
                 buf.seek(0)
 
-                # 5) ساخت شیء تصویر ReportLab با ابعاد تنظیم‌شده
-                # ساخت شیء تصویر ReportLab با ابعاد تنظیم‌شده
                 rl_img = RLImage(buf, width=new_width, height=new_height)
-                # فرض می‌کنیم colWidths ستون چپ 2.5 اینچ بوده
                 img_table = Table([[rl_img]], colWidths=[2*inch])
                 img_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # وسط‌چین کردن محتوا
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ]))
                 left_column.append(img_table)
                 left_column.append(Spacer(1, 10))
-
-
             except Exception as e:
                 print("Error loading photo:", e)
 
-        # پروفایل
+        # Profile summary
         if summary_text.strip():
-            left_column.append(Paragraph("PROFIL", section_heading_style))
+            left_column.append(Paragraph("PROFILE", section_heading_style))
             left_column.append(Paragraph(summary_text, body_style))
             left_column.append(Spacer(1, 12))
 
-        # مهارت‌ها
+        # Skills
         if skills_list:
-            left_column.append(Paragraph("COMPÉTENCES", section_heading_style))
+            left_column.append(Paragraph("SKILLS", section_heading_style))
             for s in skills_list:
                 skill_line = s.get('skill', '')
                 proficiency = s.get('proficiency')
@@ -541,12 +543,12 @@ async def download_resume_pdf(
                 left_column.append(Paragraph("• " + skill_line, body_style))
             left_column.append(Spacer(1, 12))
 
-        # ستون راست
+        # Right column
         right_column = []
 
-        # تجربیات
+        # Experience
         if experiences:
-            right_column.append(Paragraph("EXPÉRIENCES PROFESSIONNELLES", section_heading_style))
+            right_column.append(Paragraph("EXPERIENCE", section_heading_style))
             for exp in experiences:
                 position = exp.get('position', '')
                 company = exp.get('company', '')
@@ -558,12 +560,14 @@ async def download_resume_pdf(
                 date_info = f"{start_date} - {end_date}"
                 right_column.append(Paragraph(date_info, info_style))
                 if desc.strip():
-                    right_column.append(Paragraph(desc, body_style))
+    # Replace \n with <br/> for proper line breaks
+                    formatted_desc = desc.replace('\n', '<br/>')
+                    right_column.append(Paragraph(formatted_desc, body_style))
                 right_column.append(Spacer(1, 10))
 
-        # تحصیلات
+        # Education
         if educations:
-            right_column.append(Paragraph("ÉDUCATION", section_heading_style))
+            right_column.append(Paragraph("EDUCATION", section_heading_style))
             for edu in educations:
                 deg = edu.get('degree', '')
                 inst = edu.get('institution', '')
@@ -578,9 +582,9 @@ async def download_resume_pdf(
                     right_column.append(Paragraph(dsc, body_style))
                 right_column.append(Spacer(1, 10))
 
-        # پروژه‌ها
+        # Projects
         if projects:
-            right_column.append(Paragraph("PROJETS", section_heading_style))
+            right_column.append(Paragraph("PROJECTS", section_heading_style))
             for proj in projects:
                 proj_name = proj.get('name', '')
                 description = proj.get('description', '')
@@ -593,7 +597,7 @@ async def download_resume_pdf(
                     right_column.append(Paragraph(description, body_style))
                 right_column.append(Spacer(1, 10))
 
-        # گواهی‌نامه‌ها
+        # Certifications
         if certifications:
             right_column.append(Paragraph("CERTIFICATIONS", section_heading_style))
             for cert in certifications:
@@ -606,7 +610,6 @@ async def download_resume_pdf(
                 right_column.append(Paragraph(f"Date: {cdate}", body_style))
                 right_column.append(Spacer(1, 10))
 
-        # جدول دو ستونی
         content_table_data = [[left_column, right_column]]
         content_table = Table(content_table_data, colWidths=[2.5*inch, 5*inch])
         content_table.setStyle(TableStyle([
@@ -619,22 +622,19 @@ async def download_resume_pdf(
         ]))
         elements.append(content_table)
 
-        # ۶) ساخت PDF
         doc.build(elements)
 
-        # پاک‌سازی فایل موقت با BackgroundTasks
+        # Cleanup temp file
         def cleanup():
             if os.path.exists(filename):
                 os.remove(filename)
         background_tasks.add_task(cleanup)
 
-        # بازگشت فایل
         return FileResponse(
             path=filename,
             media_type='application/pdf',
             filename=f"{name.replace(' ', '_')}_{selected_theme or 'default'}_{datetime.now().strftime('%Y%m%d')}.pdf"
         )
-
     except Exception as e:
         if os.path.exists(filename):
             os.remove(filename)
