@@ -620,7 +620,11 @@ async def download_resume_pdf(
         ]))
         elements.append(content_table)
 
-        doc.build(elements)
+        try:
+            # Build the PDF
+            doc.build(elements)
+        except Exception as e:
+            print("Error building PDF:", e)
 
         # Cleanup temp file
         def cleanup():
