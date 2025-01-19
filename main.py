@@ -266,7 +266,7 @@ async def download_resume_pdf(
             filename,
             pagesize=A4,
             rightMargin=0, leftMargin=0,
-            topMargin=20, bottomMargin=10
+            topMargin=0, bottomMargin=10
         )
         elements = []
 
