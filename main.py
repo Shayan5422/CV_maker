@@ -453,6 +453,7 @@ async def download_resume_pdf(
                 ('VALIGN', (0,0), (-1,-1), 'TOP'),
                 ('LEFTPADDING', (0,0), (-1,-1), 20),
                 ('RIGHTPADDING', (0,0), (-1,-1), 20),
+                ('TOPPADDING', (0,0), (-1,-1), 16),
             ]))
             elements.append(header_table)
 
@@ -475,22 +476,51 @@ async def download_resume_pdf(
         # اگر عکس داریم، نمایش دهیم
         if photo_data:
             try:
+                # 1) لود کردن تصویر
                 if photo_data.startswith('data:image'):
-                    # base64
+                    # اگر داده به صورت Base64 بود
                     header, encoded = photo_data.split(',', 1)
                     img_data = base64.b64decode(encoded)
                     pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
                 else:
-                    # مسیر فایل
+                    # اگر مسیر فایل بود
                     pil_image = Image.open(photo_data).convert('RGBA')
 
+                # 2) گرد کردن گوشه‌ها (در صورت نیاز)
                 pil_image = round_corners(pil_image, 40)
+
+                # 3) محاسبه‌ی ابعاد نهایی بر اساس بیشترین طول/عرض مجاز (مثلاً 1.3 اینچ) با حفظ نسبت
+                max_size = 1.3 * inch
+                width, height = pil_image.size
+                aspect_ratio = width / float(height)
+
+                if aspect_ratio > 1:
+                    # اگر تصویر حالت افقی دارد
+                    new_width = max_size
+                    new_height = max_size / aspect_ratio
+                else:
+                    # اگر تصویر حالت عمودی یا مربعی دارد
+                    new_height = max_size
+                    new_width = max_size * aspect_ratio
+
+                # 4) تبدیل تصویر به فایل بایت برای ساخت RLImage
                 buf = io.BytesIO()
                 pil_image.save(buf, format='PNG')
                 buf.seek(0)
-                rl_img = RLImage(buf, width=1.3*inch, height=1.3*inch)
-                left_column.append(rl_img)
+
+                # 5) ساخت شیء تصویر ReportLab با ابعاد تنظیم‌شده
+                # ساخت شیء تصویر ReportLab با ابعاد تنظیم‌شده
+                rl_img = RLImage(buf, width=new_width, height=new_height)
+                # فرض می‌کنیم colWidths ستون چپ 2.5 اینچ بوده
+                img_table = Table([[rl_img]], colWidths=[2*inch])
+                img_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # وسط‌چین کردن محتوا
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ]))
+                left_column.append(img_table)
                 left_column.append(Spacer(1, 10))
+
+
             except Exception as e:
                 print("Error loading photo:", e)
 

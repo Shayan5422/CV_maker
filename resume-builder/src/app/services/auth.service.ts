@@ -1,4 +1,3 @@
-// src/app/services/auth.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
@@ -13,7 +12,9 @@ export class AuthService {
     private apiUrl = 'http://127.0.0.1:8000';
 
     constructor(private http: HttpClient) {
-        this.currentUserSubject = new BehaviorSubject<any>(JSON.parse(localStorage.getItem('currentUser') || '{}'));
+        // Initialize with null instead of empty object
+        const storedUser = localStorage.getItem('currentUser');
+        this.currentUserSubject = new BehaviorSubject<any>(storedUser ? JSON.parse(storedUser) : null);
         this.currentUser = this.currentUserSubject.asObservable();
     }
 
@@ -28,8 +29,10 @@ export class AuthService {
         
         return this.http.post<any>(`${this.apiUrl}/token`, formData)
             .pipe(map(user => {
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                this.currentUserSubject.next(user);
+                if (user && user.access_token) {
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    this.currentUserSubject.next(user);
+                }
                 return user;
             }));
     }
@@ -41,5 +44,10 @@ export class AuthService {
     logout() {
         localStorage.removeItem('currentUser');
         this.currentUserSubject.next(null);
+    }
+
+    isAuthenticated(): boolean {
+        const currentUser = this.currentUserValue;
+        return !!(currentUser && currentUser.access_token);
     }
 }

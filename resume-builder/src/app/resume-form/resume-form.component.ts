@@ -19,6 +19,7 @@ export class ResumeFormComponent implements OnInit {
   private resumeId?: number;
   loading = false;
   submitted = false;
+  existingPhoto: string | null = null;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -178,14 +179,20 @@ export class ResumeFormComponent implements OnInit {
       this.loading = true;
       this.resumeService.getResume(this.resumeId).subscribe({
         next: (resume: any) => {
-          // Patch basic fields
+          // Patch basic fields including photo
           this.resumeForm.patchValue({
             title: resume.title,
             full_name: resume.full_name,
             email: resume.email,
             phone: resume.phone,
-            summary: resume.summary
+            summary: resume.summary,
+            photo: resume.photo
           });
+
+          // Set the existing photo if available
+          if (resume.photo) {
+            this.existingPhoto = resume.photo;
+          }
 
           // Parse JSON fields and populate FormArrays
           this.populateFormArrayFromJSON(this.experienceArray, resume.experience, this.createExperienceGroup.bind(this));
@@ -274,9 +281,10 @@ export class ResumeFormComponent implements OnInit {
     if (file) {
       const reader = new FileReader();
       reader.onload = () => {
-        // فرض می‌کنیم می‌خواهیم رشته base64 ذخیره شود
+        const result = reader.result as string;
+        this.existingPhoto = result; // Update the displayed photo
         this.resumeForm.patchValue({
-          photo: reader.result
+          photo: result
         });
       };
       reader.readAsDataURL(file);

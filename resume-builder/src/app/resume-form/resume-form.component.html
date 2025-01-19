@@ -99,10 +99,28 @@
             </div>
 
             <!-- Photo Upload -->
-<div class="form-group">
-  <label class="block text-sm font-medium text-gray-700 mb-2">Upload Photo</label>
-  <input type="file" (change)="onFileChange($event)" accept="image/*" class="block w-full text-gray-700" />
-</div>
+            <div class="mb-4">
+              <label class="block text-gray-700 text-sm font-bold mb-2">
+                Profile Photo
+              </label>
+              <div class="flex items-center space-x-4">
+                <!-- Display existing photo if available -->
+                <img *ngIf="existingPhoto" 
+                     [src]="existingPhoto" 
+                     class="w-32 h-32 object-cover rounded-full"
+                     alt="Profile photo">
+                
+                <input type="file" 
+                       (change)="onFileChange($event)"
+                       accept="image/*"
+                       class="block w-full text-sm text-gray-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-full file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100">
+              </div>
+            </div>
   
             <!-- Summary -->
             <div class="form-group">
