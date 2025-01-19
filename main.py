@@ -560,9 +560,7 @@ async def download_resume_pdf(
                 date_info = f"{start_date} - {end_date}"
                 right_column.append(Paragraph(date_info, info_style))
                 if desc.strip():
-    # Replace \n with <br/> for proper line breaks
-                    formatted_desc = desc.replace('\n', '<br/>')
-                    right_column.append(Paragraph(formatted_desc, body_style))
+                    right_column.append(Paragraph(desc, body_style))
                 right_column.append(Spacer(1, 10))
 
         # Education
