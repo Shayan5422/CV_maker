@@ -12,6 +12,7 @@ import models
 import schemas
 from database import SessionLocal, engine, Base
 from passlib.context import CryptContext
+
 # Install required package first: pip install reportlab
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -43,7 +44,6 @@ from fastapi.responses import FileResponse
 from PIL import Image, ImageDraw
 import base64
 
-# Create the database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -65,13 +65,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Dependency: Database session
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -207,7 +208,6 @@ def round_corners(image, radius=40):
     alpha = Image.new('L', image.size, 255)
     w, h = image.size
 
-    # چهارگوشهٔ تصویر را گرد می‌کند
     alpha.paste(circle.crop((0,0,radius,radius)), (0, 0))
     alpha.paste(circle.crop((radius,0,radius*2,radius)), (w-radius, 0))
     alpha.paste(circle.crop((0,radius,radius,radius*2)), (0, h-radius))
@@ -220,10 +220,11 @@ def round_corners(image, radius=40):
 async def download_resume_pdf(
     resume_id: int,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),               # وابستگی پایگاه داده
-    current_user: models.User = Depends(get_current_user),  # وابستگی احراز هویت
+    theme: str = Query(None),  # تم انتخابی کاربر از Query پارامتر (e.g. "elegant-dark")
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    # ۱) رزومه را از دیتابیس بخوانید
+    # 1) رزومه را از دیتابیس می‌خوانیم
     resume = db.query(models.Resume).filter(
         models.Resume.id == resume_id,
         models.Resume.user_id == current_user.id
@@ -231,127 +232,183 @@ async def download_resume_pdf(
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # ۲) نام فایل موقت
+    # 2) نام فایل موقت
     timestamp = int(datetime.now().timestamp())
     filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
 
-    # ۳) داده‌های رزومه را استخراج کنیم
-    #    اینجا فرض می‌کنیم فیلدهایی شبیه name, title, phone, email, summary, skills, experience... دارید:
-    name = resume.full_name or "نام شما"
-    job_title = resume.title or "عنوان شغل/موقعیت"
+    # 3) داده‌های اصلی رزومه
+    name = resume.full_name or ""
+    job_title = resume.title or ""
     phone = resume.phone or ""
     email = resume.email or ""
     summary_text = resume.summary or ""
-    photo_data = resume.photo  # ممکن است base64 یا URL یا مسیر فایل باشد
+    photo_data = resume.photo
 
-    # تجربه‌های کاری یا تحصیلات یا مهارت‌ها ممکن است در قالب JSON باشند:
     experiences = []
     educations = []
     skills_list = []
     projects = []
     certifications = []
-    import json
-    if resume.projects:
-        try:
-            projects = json.loads(resume.projects)
-        except:
-            pass
 
-    if resume.certifications:
+    # تبدیل فیلدهای JSON (در صورت وجود)
+    def safe_load_json(json_str):
         try:
-            certifications = json.loads(resume.certifications)
+            return json.loads(json_str)
         except:
-            pass
-        # اگر در دیتابیس JSON ذخیره شده، آن را تبدیل به دیکشنری/لیست کنیم
-        
-    if resume.experience:
-        try:
-            experiences = json.loads(resume.experience)
-        except:
-            pass
-    if resume.education:
-        try:
-            educations = json.loads(resume.education)
-        except:
-            pass
-    if resume.skills:
-        try:
-            skills_list = json.loads(resume.skills)  # [{"skill":"Python","proficiency":"Expert"}, ...]
-        except:
-            pass
+            return []
 
-    # ۴) ساخت استایل‌ها با reportlab
-    styles = getSampleStyleSheet()
+    projects = safe_load_json(resume.projects) if resume.projects else []
+    certifications = safe_load_json(resume.certifications) if resume.certifications else []
+    experiences = safe_load_json(resume.experience) if resume.experience else []
+    educations = safe_load_json(resume.education) if resume.education else []
+    skills_list = safe_load_json(resume.skills) if resume.skills else []
 
-    # استایل بزرگ برای نام
-    name_style = ParagraphStyle(
-        'NameStyle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        leading=22,
-        textColor=colors.HexColor('#333333'),
-        spaceAfter=6
-    )
-    # استایل برای عنوان شغلی
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading2'],
-        fontSize=12,
-        textColor=colors.HexColor('#666666'),
-        spaceAfter=10
-    )
-    # استایل برای اطلاعات تماس
-    contact_style = ParagraphStyle(
-        'ContactStyle',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor('#555555'),
-        leading=12
-    )
-    # استایل بخش‌های داخلی
-    section_heading_style = ParagraphStyle(
-        'SectionHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        textColor=colors.HexColor('#222222'),
-        spaceBefore=10,
-        spaceAfter=4
-    )
-    # متن عادی
-    body_style = ParagraphStyle(
-        'BodyStyle',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=12,
-        textColor=colors.HexColor('#333333')
-    )
-    # متن راهنما (تاریخ، لینک، ...)
-    info_style = ParagraphStyle(
-        'InfoStyle',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=colors.HexColor('#777777')
-    )
+    # 4) تشخیص تم
+    selected_theme = theme or ""  # اگر کوئری پارامتر پر نبود، خالی می‌ماند
 
+    # ساخت سند PDF
     try:
-        # ۵) ایجاد سند PDF
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
             rightMargin=0, leftMargin=0,
             topMargin=20, bottomMargin=10
         )
-
         elements = []
 
-        # -------------------------
-        # (الف) هدر بالا (شامل نام، عنوان شغلی، اطلاعات تماس)
-        # -------------------------
-        header_left = []  # ستون چپ: نام و عنوان
+        # ------------------------
+        # استایل‌های تم پیش‌فرض
+        # ------------------------
+        default_styles = getSampleStyleSheet()
+
+        name_style_default = ParagraphStyle(
+            'NameStyleDefault',
+            parent=default_styles['Heading1'],
+            fontSize=18,
+            leading=22,
+            textColor=colors.HexColor('#333333'),
+            spaceAfter=6
+        )
+        title_style_default = ParagraphStyle(
+            'TitleStyleDefault',
+            parent=default_styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#666666'),
+            spaceAfter=10
+        )
+        contact_style_default = ParagraphStyle(
+            'ContactStyleDefault',
+            parent=default_styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#555555'),
+            leading=12
+        )
+        section_heading_style_default = ParagraphStyle(
+            'SectionHeadingDefault',
+            parent=default_styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#222222'),
+            spaceBefore=10,
+            spaceAfter=4
+        )
+        body_style_default = ParagraphStyle(
+            'BodyStyleDefault',
+            parent=default_styles['Normal'],
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor('#333333')
+        )
+        info_style_default = ParagraphStyle(
+            'InfoStyleDefault',
+            parent=default_styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#777777')
+        )
+
+        # ------------------------
+        # استایل‌های تم تیره (elegant-dark)
+        # ------------------------
+        dark_styles = getSampleStyleSheet()
+
+        name_style_dark = ParagraphStyle(
+            'NameStyleDark',
+            parent=dark_styles['Heading1'],
+            fontSize=18,
+            leading=22,
+            textColor=colors.whitesmoke,
+            spaceAfter=6
+        )
+        title_style_dark = ParagraphStyle(
+            'TitleStyleDark',
+            parent=dark_styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#cccccc'),
+            spaceAfter=10
+        )
+        contact_style_dark = ParagraphStyle(
+            'ContactStyleDark',
+            parent=dark_styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#dddddd'),
+            leading=12
+        )
+        section_heading_style_dark = ParagraphStyle(
+            'SectionHeadingDark',
+            parent=dark_styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#ffffff'),
+            backColor=colors.HexColor('#303030'),
+            spaceBefore=10,
+            spaceAfter=4,
+            leftIndent=2,
+            rightIndent=2,
+            borderRadius=3
+        )
+        body_style_dark = ParagraphStyle(
+            'BodyStyleDark',
+            parent=dark_styles['Normal'],
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor('#e0e0e0')
+        )
+        info_style_dark = ParagraphStyle(
+            'InfoStyleDark',
+            parent=dark_styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#cccccc')
+        )
+
+        # ------------------------
+        # انتخاب استایل با توجه به theme
+        # ------------------------
+        if selected_theme == "elegant-dark":
+            name_style = name_style_dark
+            title_style = title_style_dark
+            contact_style = contact_style_dark
+            section_heading_style = section_heading_style_dark
+            body_style = body_style_dark
+            info_style = info_style_dark
+            line_color = colors.HexColor('#cccccc')
+            vertical_line_color = colors.HexColor('#cccccc')
+        else:
+            # تم پیش‌فرض
+            name_style = name_style_default
+            title_style = title_style_default
+            contact_style = contact_style_default
+            section_heading_style = section_heading_style_default
+            body_style = body_style_default
+            info_style = info_style_default
+            line_color = colors.HexColor('#999999')
+            vertical_line_color = colors.HexColor('#aaaaaa')
+
+        # ------------------------
+        # هدر: (Name, Title, Contact)
+        # ------------------------
+        header_left = []
         header_left.append(Paragraph(name, name_style))
         header_left.append(Paragraph(job_title, title_style))
 
-        header_right = []  # ستون راست: تلفن، ایمیل، ...
+        header_right = []
         if phone:
             header_right.append(Paragraph(phone, contact_style))
         if email:
@@ -365,34 +422,31 @@ async def download_resume_pdf(
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ]))
 
-        # خط افقی زیر هدر
+        # یک خط افقی زیر هدر
         line_data = [['']]
         line_table = Table(line_data, colWidths=[6*inch])
         line_table.setStyle(TableStyle([
-            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#999999')),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, line_color),
         ]))
 
-        # -------------------------
-        # (ب) ساخت دو ستون اصلی در بدنه
-        # ستون چپ (پروفایل، عکس، خلاصه، مهارت‌ها...) 
-        # ستون راست (تجربیات، تحصیلات...)
-        # -------------------------
+        # ------------------------
+        # بدنه دو ستونی (Left/Right)
+        # ------------------------
         left_column = []
 
-        # -- عکس پروفایل:
+        # عکس پروفایل در ستون چپ
         if photo_data:
             try:
                 pil_image = None
                 if photo_data.startswith('data:image'):
-                    # اگر base64 بود
+                    # base64
                     header, encoded = photo_data.split(',', 1)
                     img_data = base64.b64decode(encoded)
                     pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
                 else:
-                    # در غیر این صورت فرض می‌کنیم مسیر فایل است
+                    # مسیر فایل
                     pil_image = Image.open(photo_data).convert('RGBA')
 
-                # گوشه‌گرد
                 pil_image = round_corners(pil_image, 50)
                 buf = io.BytesIO()
                 pil_image.save(buf, format='PNG')
@@ -404,54 +458,47 @@ async def download_resume_pdf(
             except Exception as e:
                 print("Error loading photo:", e)
 
-        # -- بخش خلاصه (Profile)
+        # خلاصه (Profile)
         if summary_text.strip():
             left_column.append(Paragraph("<b>+ Profile</b>", section_heading_style))
             left_column.append(Paragraph(summary_text, body_style))
             left_column.append(Spacer(1, 10))
 
-        # -- مهارت‌ها (چون در دیتابیس JSON داشتیم، احتمالاً [{"skill": "...", "proficiency": "..."}]):
+        # مهارت‌ها
         if skills_list:
             left_column.append(Paragraph("<b>+ Skills</b>", section_heading_style))
             for s in skills_list:
-                skill_line = s['skill']
-                # اگر میزان تسلط هم داشت
-                if 'proficiency' in s:
-                    skill_line += f" ({s['proficiency']})"
+                skill_line = s.get('skill', '')
+                proficiency = s.get('proficiency')
+                if proficiency:
+                    skill_line += f" ({proficiency})"
                 left_column.append(Paragraph("• " + skill_line, body_style))
             left_column.append(Spacer(1, 10))
 
-        # می‌توانید زبان‌ها، علاقه‌مندی‌ها یا سایر موارد را هم در همین ستون اضافه کنید
-
         # ستون راست
         right_column = []
-        
-        # -- تجربیات
+
+        # تجربیات
         if experiences:
             right_column.append(Paragraph("<b>+ Professional experience</b>", section_heading_style))
             for exp in experiences:
-                # exp = {"position": "...", "company": "...", "start_date": "...", "end_date": "...", "description": "..."}
-                position = exp.get('position', '') 
+                position = exp.get('position', '')
                 company = exp.get('company', '')
                 start_date = exp.get('start_date', '')
                 end_date = exp.get('end_date', '')
                 desc = exp.get('description', '')
 
-                # سطر تیتر
                 right_column.append(Paragraph(f"<b>{position}</b> - {company}", body_style))
-                # تاریخ
                 date_info = f"{start_date} - {end_date}"
                 right_column.append(Paragraph(date_info, info_style))
-                # توضیحات
                 if desc.strip():
                     right_column.append(Paragraph(desc, body_style))
                 right_column.append(Spacer(1, 8))
 
-        # -- تحصیلات
+        # تحصیلات
         if educations:
             right_column.append(Paragraph("<b>+ Education</b>", section_heading_style))
             for edu in educations:
-                # edu = {"degree": "...", "institution": "...", "start_date": "...", "end_date": "...", "description": "..."}
                 deg = edu.get('degree', '')
                 inst = edu.get('institution', '')
                 sd = edu.get('start_date', '')
@@ -465,52 +512,47 @@ async def download_resume_pdf(
                     right_column.append(Paragraph(dsc, body_style))
                 right_column.append(Spacer(1, 8))
 
-                
+        # پروژه‌ها
         if projects:
             right_column.append(Paragraph("<b>+ Projects</b>", section_heading_style))
             for proj in projects:
-                name = proj.get('name', '')
+                proj_name = proj.get('name', '')
                 description = proj.get('description', '')
                 link = proj.get('link', '')
-                
-                right_column.append(Paragraph(f"<b>{name}</b>", body_style))
+
+                right_column.append(Paragraph(f"<b>{proj_name}</b>", body_style))
                 if link:
                     right_column.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", body_style))
                 if description.strip():
                     right_column.append(Paragraph(description, body_style))
                 right_column.append(Spacer(1, 8))
 
-        # -- گواهی‌نامه‌ها
+        # گواهینامه‌ها
         if certifications:
             right_column.append(Paragraph("<b>+ Certifications</b>", section_heading_style))
             for cert in certifications:
                 title = cert.get('title', '')
                 issuer = cert.get('issuer', '')
                 date = cert.get('date', '')
-                
+
                 right_column.append(Paragraph(f"<b>{title}</b>", body_style))
                 right_column.append(Paragraph(f"Issuer: {issuer}", body_style))
                 right_column.append(Paragraph(f"Date: {date}", body_style))
                 right_column.append(Spacer(1, 8))
 
-
-        # ساخت جدول دو ستونی
-        body_table_data = [
-            [left_column, right_column]
-        ]
+        # جدول بدنه دو ستونی
+        body_table_data = [[left_column, right_column]]
         body_table = Table(body_table_data, colWidths=[2.5*inch, 5*inch])
         body_table.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            # خط عمودی بین دو ستون
-            ('LINEBEFORE', (1,0), (1,-1), 1, colors.HexColor('#aaaaaa')),
-            # پدینگ
+            ('LINEBEFORE', (1,0), (1,-1), 1, vertical_line_color),
             ('LEFTPADDING', (0,0), (0,0), 6),
             ('RIGHTPADDING', (0,0), (0,0), 10),
             ('LEFTPADDING', (1,0), (1,0), 10),
             ('RIGHTPADDING', (1,0), (1,0), 6),
         ]))
 
-        # مونتاژ نهایی
+        # ساختار نهایی
         elements.append(header_table)
         elements.append(Spacer(1, 6))
         elements.append(line_table)
@@ -520,7 +562,7 @@ async def download_resume_pdf(
         # ساخت PDF
         doc.build(elements)
 
-        # پس از ساخت، با استفاده از BackgroundTasks فایل موقت را پاک می‌کنیم
+        # پاک‌سازی فایل موقت پس از پاسخ
         def cleanup():
             try:
                 if os.path.exists(filename):
@@ -530,15 +572,15 @@ async def download_resume_pdf(
 
         background_tasks.add_task(cleanup)
 
-        # برگرداندن فایل به صورت دانلود
+        # تحویل فایل به صورت پاسخ دانلود
         return FileResponse(
             path=filename,
             media_type='application/pdf',
-            filename=f"{name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            filename=f"{name.replace(' ', '_')}_{selected_theme or 'default'}_{datetime.now().strftime('%Y%m%d')}.pdf"
         )
 
     except Exception as e:
-        # در صورت خطا، فایل را پاک کنید
+        # در صورت بروز خطا فایل را پاک می‌کنیم
         if os.path.exists(filename):
             os.remove(filename)
         raise HTTPException(
