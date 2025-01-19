@@ -248,8 +248,22 @@ async def download_resume_pdf(
     experiences = []
     educations = []
     skills_list = []
-    # اگر در دیتابیس JSON ذخیره شده، آن را تبدیل به دیکشنری/لیست کنیم
+    projects = []
+    certifications = []
     import json
+    if resume.projects:
+        try:
+            projects = json.loads(resume.projects)
+        except:
+            pass
+
+    if resume.certifications:
+        try:
+            certifications = json.loads(resume.certifications)
+        except:
+            pass
+        # اگر در دیتابیس JSON ذخیره شده، آن را تبدیل به دیکشنری/لیست کنیم
+        
     if resume.experience:
         try:
             experiences = json.loads(resume.experience)
@@ -450,6 +464,35 @@ async def download_resume_pdf(
                 if dsc.strip():
                     right_column.append(Paragraph(dsc, body_style))
                 right_column.append(Spacer(1, 8))
+
+                
+        if projects:
+            right_column.append(Paragraph("<b>+ Projects</b>", section_heading_style))
+            for proj in projects:
+                name = proj.get('name', '')
+                description = proj.get('description', '')
+                link = proj.get('link', '')
+                
+                right_column.append(Paragraph(f"<b>{name}</b>", body_style))
+                if link:
+                    right_column.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", body_style))
+                if description.strip():
+                    right_column.append(Paragraph(description, body_style))
+                right_column.append(Spacer(1, 8))
+
+        # -- گواهی‌نامه‌ها
+        if certifications:
+            right_column.append(Paragraph("<b>+ Certifications</b>", section_heading_style))
+            for cert in certifications:
+                title = cert.get('title', '')
+                issuer = cert.get('issuer', '')
+                date = cert.get('date', '')
+                
+                right_column.append(Paragraph(f"<b>{title}</b>", body_style))
+                right_column.append(Paragraph(f"Issuer: {issuer}", body_style))
+                right_column.append(Paragraph(f"Date: {date}", body_style))
+                right_column.append(Spacer(1, 8))
+
 
         # ساخت جدول دو ستونی
         body_table_data = [
