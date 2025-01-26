@@ -599,7 +599,8 @@ async def download_resume_pdf(
                 position = exp.get('position', '')
                 company = exp.get('company', '')
                 start_date = exp.get('start_date', '')
-                end_date = exp.get('end_date', '')
+                is_current = exp.get('is_current', False)
+                end_date = 'Present' if is_current else exp.get('end_date', '')
                 desc = exp.get('description', '')
 
                 right_elements.append(Paragraph(f"<b>{position}</b> - {company}", body_style))
@@ -616,7 +617,8 @@ async def download_resume_pdf(
                 deg = edu.get('degree', '')
                 inst = edu.get('institution', '')
                 sd = edu.get('start_date', '')
-                ed = edu.get('end_date', '')
+                is_current = edu.get('is_current', False)
+                ed = 'Present' if is_current else edu.get('end_date', '')
                 dsc = edu.get('description', '')
 
                 right_elements.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style))

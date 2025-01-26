@@ -90,7 +90,8 @@ export class ResumeFormComponent implements OnInit {
       company: ['', Validators.required],
       position: ['', Validators.required],
       start_date: ['', Validators.required],
-      end_date: ['', Validators.required],
+      end_date: [''],
+      is_current: [false],
       description: ['', Validators.required]
     });
   }
@@ -100,7 +101,8 @@ export class ResumeFormComponent implements OnInit {
       institution: ['', Validators.required],
       degree: ['', Validators.required],
       start_date: ['', Validators.required],
-      end_date: ['', Validators.required],
+      end_date: [''],
+      is_current: [false],
       description: ['']
     });
   }

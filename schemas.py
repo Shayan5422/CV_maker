@@ -22,14 +22,16 @@ class ExperienceItem(BaseModel):
     company: str
     position: str
     start_date: str
-    end_date: str
+    end_date: Optional[str] = None
+    is_current: bool = False
     description: str
 
 class EducationItem(BaseModel):
     institution: str
     degree: str
     start_date: str
-    end_date: str
+    end_date: Optional[str] = None
+    is_current: bool = False
     description: Optional[str] = None
 
 class SkillItem(BaseModel):
