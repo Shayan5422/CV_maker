@@ -1,7 +1,7 @@
 // src/app/components/resume-list/resume-list.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { ResumeService, ResumeTheme } from '../services/resume.service';
 import { Resume } from '../models/resume.model';
 
@@ -22,7 +22,8 @@ export class ResumeListComponent implements OnInit {
   themes: ResumeTheme[] = [];
 
   constructor(
-    private resumeService: ResumeService
+    private resumeService: ResumeService,
+    private router: Router
   ) {
     this.themes = this.resumeService.getThemes();
   }
@@ -51,34 +52,50 @@ export class ResumeListComponent implements OnInit {
     });
   }
 
-  createNew() {
-    // This method is not provided in the original file or the new file
-    // It's assumed to exist as it's called in the template
+  createNew(): void {
+    this.router.navigate(['/resumes/new']);
   }
 
-  editResume(id?: number) {
-    // This method is not provided in the original file or the new file
-    // It's assumed to exist as it's called in the template
+  editResume(id: number): void {
+    this.router.navigate(['/resumes/edit', id]);
   }
 
-  openThemeModal(resume: Resume) {
+  openThemeModal(resume: Resume): void {
     this.selectedResume = resume;
     this.showThemeModal = true;
   }
 
-  closeThemeModal() {
+  closeThemeModal(): void {
     this.showThemeModal = false;
     this.selectedThemeId = null;
     this.selectedResume = null;
   }
 
-  selectThemeAndDownload(themeId: string) {
+  selectThemeAndDownload(themeId: string): void {
     this.selectedThemeId = themeId;
   }
 
-  downloadWithTheme() {
-    // This method is not provided in the original file or the new file
-    // It's assumed to exist as it's called in the template
+  downloadWithTheme(): void {
+    if (this.selectedThemeId && this.selectedResume?.id) {
+      this.resumeService.downloadResumePDF(this.selectedResume.id, this.selectedThemeId).subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${this.selectedResume?.title.replace(/\s+/g, '_')}_${this.selectedThemeId}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          this.closeThemeModal();
+        },
+        error: (error) => {
+          console.error('Error downloading PDF:', error);
+          this.error = 'Failed to download PDF. Please try again.';
+          this.closeThemeModal();
+        }
+      });
+    }
   }
 
   async deleteResume(id?: number): Promise<void> {
