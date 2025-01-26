@@ -46,18 +46,24 @@ class CertificationItem(BaseModel):
     issuer: str
     date: str
 
+class LanguageItem(BaseModel):
+    language: str
+    proficiency: str
+
 # ----- Resume Schemas -----
 class ResumeBase(BaseModel):
     title: str
     full_name: str
     email: EmailStr
     phone: str  # Validate phone format
+    city: str   # Add city field
     summary: str
     experience: str
     education: str
     skills: str
     projects: str
     certifications: str
+    languages: str  # Add languages field
     photo: Optional[str] = None
 
     # Validators to ensure JSON strings are valid
@@ -106,6 +112,15 @@ class ResumeBase(BaseModel):
         except Exception as e:
             raise ValueError('Invalid certifications format')
 
+    @field_validator('languages')
+    def validate_languages(cls, v):
+        try:
+            items = json.loads(v)
+            [LanguageItem(**item) for item in items]
+            return v
+        except Exception as e:
+            raise ValueError('Invalid languages format')
+
 class ResumeCreate(ResumeBase):
     pass
 
@@ -133,3 +148,6 @@ class Resume(ResumeBase):
 
     def get_certifications_list(self) -> List[CertificationItem]:
         return [CertificationItem(**item) for item in json.loads(self.certifications)]
+
+    def get_languages_list(self) -> List[LanguageItem]:
+        return [LanguageItem(**item) for item in json.loads(self.languages)]

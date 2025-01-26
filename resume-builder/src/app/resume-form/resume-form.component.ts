@@ -32,6 +32,8 @@ export class ResumeFormComponent implements OnInit {
       full_name: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       phone: ['', [Validators.required, Validators.pattern('^[0-9-+()\\s]*$')]],
+      city: ['', Validators.required],
+      languages: this.formBuilder.array([this.createLanguageGroup()]),
       summary: ['', Validators.required],
       // Experience and Education fields are maintained as FormArrays
       experience: this.formBuilder.array([this.createExperienceGroup()]),
@@ -78,6 +80,10 @@ export class ResumeFormComponent implements OnInit {
     return this.resumeForm.get('certifications') as FormArray;
   }
 
+  get languagesArray(): FormArray {
+    return this.resumeForm.get('languages') as FormArray;
+  }
+
   // Form group creators
   createExperienceGroup(): FormGroup {
     return this.formBuilder.group({
@@ -119,6 +125,13 @@ export class ResumeFormComponent implements OnInit {
       title: ['', Validators.required],
       issuer: ['', Validators.required],
       date: ['', Validators.required]
+    });
+  }
+
+  createLanguageGroup(): FormGroup {
+    return this.formBuilder.group({
+      language: ['', Validators.required],
+      proficiency: ['', Validators.required]
     });
   }
 
@@ -173,6 +186,16 @@ export class ResumeFormComponent implements OnInit {
     }
   }
 
+  addLanguage(): void {
+    this.languagesArray.push(this.createLanguageGroup());
+  }
+
+  removeLanguage(index: number): void {
+    if (this.languagesArray.length > 1) {
+      this.languagesArray.removeAt(index);
+    }
+  }
+
   // Parsing stored JSON strings into arrays for editing
   loadResume(): void {
     if (this.resumeId) {
@@ -185,6 +208,7 @@ export class ResumeFormComponent implements OnInit {
             full_name: resume.full_name,
             email: resume.email,
             phone: resume.phone,
+            city: resume.city,
             summary: resume.summary,
             photo: resume.photo
           });
@@ -195,6 +219,7 @@ export class ResumeFormComponent implements OnInit {
           }
 
           // Parse JSON fields and populate FormArrays
+          this.populateFormArrayFromJSON(this.languagesArray, resume.languages, this.createLanguageGroup.bind(this));
           this.populateFormArrayFromJSON(this.experienceArray, resume.experience, this.createExperienceGroup.bind(this));
           this.populateFormArrayFromJSON(this.educationArray, resume.education, this.createEducationGroup.bind(this));
           this.populateFormArrayFromJSON(this.skillsArray, resume.skills, this.createSkillGroup.bind(this));
@@ -246,12 +271,13 @@ export class ResumeFormComponent implements OnInit {
     this.loading = true;
     const resumeData = this.resumeForm.value;
 
-    // Convert structured arrays to JSON strings
-    resumeData.experience = JSON.stringify(resumeData.experience);
-    resumeData.education = JSON.stringify(resumeData.education);
-    resumeData.skills = JSON.stringify(resumeData.skills);
-    resumeData.projects = JSON.stringify(resumeData.projects);
-    resumeData.certifications = JSON.stringify(resumeData.certifications);
+    // Convert form arrays to JSON strings without double encoding
+    const arrayFields = ['languages', 'experience', 'education', 'skills', 'projects', 'certifications'];
+    arrayFields.forEach(field => {
+      if (resumeData[field] && Array.isArray(resumeData[field])) {
+        resumeData[field] = JSON.stringify(resumeData[field]);
+      }
+    });
 
     if (this.isEditing && this.resumeId) {
       this.resumeService.updateResume(this.resumeId, resumeData).subscribe({

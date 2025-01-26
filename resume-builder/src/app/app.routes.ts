@@ -1,6 +1,6 @@
 // src/app/app.routes.ts
 import { Routes } from '@angular/router';
-import { authGuard } from './guards/auth.guard';
+import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -17,19 +17,19 @@ export const routes: Routes = [
     path: 'resumes',
     loadComponent: () => import('./resume-list/resume-list.component')
       .then(m => m.ResumeListComponent),
-    canActivate: [authGuard]
+    canActivate: [AuthGuard]
   },
   {
     path: 'resumes/new',
     loadComponent: () => import('./resume-form/resume-form.component')
       .then(m => m.ResumeFormComponent),
-    canActivate: [authGuard]
+    canActivate: [AuthGuard]
   },
   {
     path: 'resumes/edit/:id',
     loadComponent: () => import('./resume-form/resume-form.component')
       .then(m => m.ResumeFormComponent),
-    canActivate: [authGuard]
+    canActivate: [AuthGuard]
   },
   {
     path: '',

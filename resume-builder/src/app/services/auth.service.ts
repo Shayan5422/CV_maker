@@ -1,53 +1,79 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Router } from '@angular/router';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 
 @Injectable({
     providedIn: 'root'
 })
 export class AuthService {
-    private currentUserSubject: BehaviorSubject<any>;
-    public currentUser: Observable<any>;
-    private apiUrl = 'http://127.0.0.1:8000';
+    private baseUrl = 'http://127.0.0.1:8000';
+    private tokenKey = 'auth_token';
+    private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
 
-    constructor(private http: HttpClient) {
-        // Initialize with null instead of empty object
-        const storedUser = localStorage.getItem('currentUser');
-        this.currentUserSubject = new BehaviorSubject<any>(storedUser ? JSON.parse(storedUser) : null);
-        this.currentUser = this.currentUserSubject.asObservable();
+    constructor(
+        private http: HttpClient,
+        private router: Router
+    ) {
+        console.log('Initial auth state:', this.isAuthenticated());
     }
 
-    public get currentUserValue() {
-        return this.currentUserSubject.value;
-    }
-
-    login(username: string, password: string) {
+    login(email: string, password: string): Observable<any> {
         const formData = new FormData();
-        formData.append('username', username);
+        formData.append('username', email);
         formData.append('password', password);
-        
-        return this.http.post<any>(`${this.apiUrl}/token`, formData)
-            .pipe(map(user => {
-                if (user && user.access_token) {
-                    localStorage.setItem('currentUser', JSON.stringify(user));
-                    this.currentUserSubject.next(user);
+
+        return this.http.post(`${this.baseUrl}/token`, formData).pipe(
+            tap((response: any) => {
+                console.log('Login response:', response);
+                if (response.access_token) {
+                    this.setToken(response.access_token);
+                    this.isAuthenticatedSubject.next(true);
+                    console.log('Token stored, auth state updated');
                 }
-                return user;
-            }));
+            })
+        );
     }
 
-    register(email: string, password: string) {
-        return this.http.post(`${this.apiUrl}/register`, { email, password });
+    register(email: string, password: string): Observable<any> {
+        return this.http.post(`${this.baseUrl}/register`, { email, password });
     }
 
-    logout() {
-        localStorage.removeItem('currentUser');
-        this.currentUserSubject.next(null);
+    logout(): void {
+        localStorage.removeItem(this.tokenKey);
+        this.isAuthenticatedSubject.next(false);
+        console.log('Logged out, token removed');
+        this.router.navigate(['/login']);
+    }
+
+    getToken(): string | null {
+        const token = localStorage.getItem(this.tokenKey);
+        console.log('Retrieved token:', token ? 'exists' : 'null');
+        return token;
+    }
+
+    private setToken(token: string): void {
+        localStorage.setItem(this.tokenKey, token);
+        console.log('Token set in localStorage');
+    }
+
+    private hasToken(): boolean {
+        return !!this.getToken();
     }
 
     isAuthenticated(): boolean {
-        const currentUser = this.currentUserValue;
-        return !!(currentUser && currentUser.access_token);
+        const isAuth = this.hasToken();
+        console.log('Checking auth state:', isAuth);
+        return isAuth;
+    }
+
+    getAuthStatus(): Observable<boolean> {
+        return this.isAuthenticatedSubject.asObservable();
+    }
+
+    // Handle 401 Unauthorized errors
+    handleAuthError(): void {
+        console.log('Handling auth error');
+        this.logout();
     }
 }

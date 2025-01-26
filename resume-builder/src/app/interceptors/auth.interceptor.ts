@@ -1,18 +1,42 @@
 // src/app/interceptors/auth.interceptor.ts
-import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { Injectable } from '@angular/core';
+import {
+  HttpRequest,
+  HttpHandler,
+  HttpEvent,
+  HttpInterceptor,
+  HttpErrorResponse
+} from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  
-  if (authService.currentUserValue?.access_token) {
-    req = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${authService.currentUserValue.access_token}`
-      }
-    });
+@Injectable()
+export class AuthInterceptor implements HttpInterceptor {
+  constructor(private authService: AuthService) {}
+
+  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    const token = this.authService.getToken();
+    console.log('Current token:', token);
+    
+    if (token) {
+      request = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      console.log('Request headers:', request.headers.get('Authorization'));
+    }
+
+    return next.handle(request).pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          console.error('401 Error - Headers:', error.headers);
+          console.error('401 Error - Message:', error.message);
+          this.authService.handleAuthError();
+        }
+        return throwError(() => error);
+      })
+    );
   }
-  
-  return next(req);
-};
+}

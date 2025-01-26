@@ -19,12 +19,15 @@ class Resume(Base):
     full_name = Column(String)
     email = Column(String)
     phone = Column(String)
+    city = Column(String)
+    language = Column(String)
     summary = Column(Text)
     experience = Column(Text)   # Will store JSON string of experience items
     education = Column(Text)    # Will store JSON string of education items
     skills = Column(Text)       # Will store JSON string of skills items
     projects = Column(Text)     # Will store JSON string of project items
     certifications = Column(Text)  # Will store JSON string of certification items
+    languages = Column(Text)     # Will store JSON string of language items
     photo = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="resumes")

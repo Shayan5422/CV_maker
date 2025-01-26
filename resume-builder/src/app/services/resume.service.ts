@@ -1,8 +1,9 @@
 // src/app/services/resume.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Resume } from '../models/resume.model';
-import { Observable } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
+import { AuthService } from './auth.service';
 
 export interface ResumeTheme {
   id: string;
@@ -88,37 +89,85 @@ export class ResumeService {
     }
   ];
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
+
+  private getAuthHeaders(): HttpHeaders {
+    const token = this.authService.getToken();
+    return new HttpHeaders().set('Authorization', `Bearer ${token}`);
+  }
 
   getResumes(): Observable<Resume[]> {
-    return this.http.get<Resume[]>(this.apiUrl);
+    const headers = this.getAuthHeaders();
+    console.log('Fetching resumes with headers:', headers.get('Authorization'));
+    
+    return this.http.get<Resume[]>(this.apiUrl, { headers }).pipe(
+      catchError(error => {
+        console.error('Resume fetch error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   getResume(id: number): Observable<Resume> {
-    return this.http.get<Resume>(`${this.apiUrl}/${id}`);
+    const headers = this.getAuthHeaders();
+    return this.http.get<Resume>(`${this.apiUrl}/${id}`, { headers }).pipe(
+      catchError(error => {
+        console.error('Resume fetch error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   createResume(resume: Resume): Observable<Resume> {
-    return this.http.post<Resume>(this.apiUrl, resume);
+    const headers = this.getAuthHeaders();
+    return this.http.post<Resume>(this.apiUrl, resume, { headers }).pipe(
+      catchError(error => {
+        console.error('Resume creation error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   updateResume(id: number, resume: Resume): Observable<Resume> {
-    return this.http.put<Resume>(`${this.apiUrl}/${id}`, resume);
+    const headers = this.getAuthHeaders();
+    return this.http.put<Resume>(`${this.apiUrl}/${id}`, resume, { headers }).pipe(
+      catchError(error => {
+        console.error('Resume update error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   deleteResume(id: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+    const headers = this.getAuthHeaders();
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`, { headers }).pipe(
+      catchError(error => {
+        console.error('Resume deletion error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   downloadResumePDF(id: number, themeId: string): Observable<Blob> {
+    const headers = this.getAuthHeaders()
+      .set('Accept', 'application/pdf');
     const params = new HttpParams().set('theme', themeId);
+    
+    console.log('Downloading PDF with headers:', headers.get('Authorization'));
+    
     return this.http.get(`${this.apiUrl}/${id}/pdf`, {
       params,
       responseType: 'blob',
-      headers: {
-        'Accept': 'application/pdf'
-      }
-    });
+      headers
+    }).pipe(
+      catchError(error => {
+        console.error('PDF download error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   getThemes(): ResumeTheme[] {

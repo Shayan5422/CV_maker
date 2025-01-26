@@ -28,12 +28,14 @@ from fastapi.responses import FileResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import inch, mm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 import io
 import os
 import json
 from datetime import datetime
+from reportlab.platypus import KeepTogether, FrameBreak
+from reportlab.platypus import Frame, PageTemplate, NextPageTemplate
 
 # ReportLab and Pillow Imports
 from reportlab.lib import colors
@@ -44,6 +46,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from fastapi.responses import FileResponse
 from PIL import Image, ImageDraw
 import base64
+
+from reportlab.pdfgen import canvas
 
 Base.metadata.create_all(bind=engine)
 
@@ -225,31 +229,55 @@ def draw_vertical_line(canvas, doc, line_color=colors.HexColor('#AAAAAA')):
     canvas.setStrokeColor(line_color)
     canvas.setLineWidth(0.5)
     
-    # X position for the vertical line (2.5 inches from left margin)
-    x_pos = 2.5 * inch
+    # X position for the vertical line (adjusted for new margins)
+    x_pos = doc.leftMargin + 2.5 * inch
     
-    # Draw from bottom of page to top, regardless of content
-    canvas.line(x_pos, 0, x_pos, A4[1])
-    
-    # Ensure the line is drawn on top of everything
-    canvas.setLineWidth(0.5)
-    canvas.setStrokeColor(line_color)
-    canvas.line(x_pos, 0, x_pos, A4[1])
+    # Draw from bottom margin to top margin with some padding
+    canvas.line(x_pos, doc.bottomMargin + 5*mm, x_pos, A4[1] - doc.topMargin - 5*mm)
     
     canvas.restoreState()
 
-# Modify the SimpleDocTemplate initialization to use the updated vertical line
+# Modify the SimpleDocTemplate initialization
 doc = SimpleDocTemplate(
     filename,
     pagesize=A4,
-    rightMargin=0,
-    leftMargin=0,
-    topMargin=0,
-    bottomMargin=10,
+    rightMargin=15*mm,    # Increased margin
+    leftMargin=15*mm,     # Increased margin
+    topMargin=15*mm,      # Increased margin
+    bottomMargin=15*mm,   # Increased margin
+    allowSplitting=1,     # Enable content splitting
     # Apply vertical line to both first and subsequent pages
     onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
     onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
 )
+
+class NumberedCanvas(canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        canvas.Canvas.__init__(self, *args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        """Add page info to each page (page x of y)"""
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(num_pages)
+            canvas.Canvas.showPage(self)
+        canvas.Canvas.save(self)
+
+    def draw_page_number(self, page_count):
+        # Only draw page numbers if there are multiple pages
+        if page_count > 1:
+            self.setFont("Helvetica", 8)
+            self.drawRightString(
+                A4[0] - 20,
+                20,
+                f"Page {self._pageNumber} of {page_count}"
+            )
 
 @app.get("/resumes/{resume_id}/pdf")
 async def download_resume_pdf(
@@ -273,6 +301,7 @@ async def download_resume_pdf(
     job_title = resume.title or ""
     phone = resume.phone or ""
     email = resume.email or ""
+    city = resume.city or ""
     summary_text = resume.summary or ""
     photo_data = resume.photo
 
@@ -287,6 +316,7 @@ async def download_resume_pdf(
     skills_list = safe_load_json(resume.skills) if resume.skills else []
     projects = safe_load_json(resume.projects) if resume.projects else []
     certifications = safe_load_json(resume.certifications) if resume.certifications else []
+    languages = safe_load_json(resume.languages) if resume.languages else []
 
     selected_theme = theme or ""
 
@@ -297,11 +327,12 @@ async def download_resume_pdf(
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
-            rightMargin=0,
-            leftMargin=0,
-            topMargin=0,
-            bottomMargin=10,
-            # Draw vertical line on every page
+            rightMargin=15*mm,    # Increased margin
+            leftMargin=15*mm,     # Increased margin
+            topMargin=15*mm,      # Increased margin
+            bottomMargin=15*mm,   # Increased margin
+            allowSplitting=1,     # Enable content splitting
+            # Apply vertical line to both first and subsequent pages
             onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
             onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
         )
@@ -432,6 +463,8 @@ async def download_resume_pdf(
                 header_content.append(Paragraph(job_title, title_style))
 
             contact_info = []
+            if city:
+                contact_info.append(city)
             if phone:
                 contact_info.append(phone)
             if email:
@@ -457,6 +490,8 @@ async def download_resume_pdf(
             header_left.append(Paragraph(job_title, title_style))
 
             header_right = []
+            if city:
+                header_right.append(Paragraph(city, contact_style))
             if phone:
                 header_right.append(Paragraph(phone, contact_style))
             if email:
@@ -486,9 +521,9 @@ async def download_resume_pdf(
         # ---------------------------------------------------
         # Two-column content
         # ---------------------------------------------------
-        left_column = []
-
-        # Photo
+        left_elements = []
+        
+        # Photo handling - move to left column
         if photo_data:
             try:
                 if photo_data.startswith('data:image'):
@@ -500,7 +535,8 @@ async def download_resume_pdf(
 
                 pil_image = round_corners(pil_image, 40)
 
-                max_size = 1.3 * inch
+                # Reduce image size
+                max_size = inch  # Reduced from 1.3 * inch
                 width, height = pil_image.size
                 aspect_ratio = width / float(height)
 
@@ -521,34 +557,44 @@ async def download_resume_pdf(
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ]))
-                left_column.append(img_table)
-                left_column.append(Spacer(1, 10))
+                left_elements.append(img_table)
+                left_elements.append(Spacer(1, 10))
             except Exception as e:
                 print("Error loading photo:", e)
 
         # Profile summary
         if summary_text.strip():
-            left_column.append(Paragraph("PROFILE", section_heading_style))
-            left_column.append(Paragraph(summary_text, body_style))
-            left_column.append(Spacer(1, 12))
+            left_elements.append(Paragraph("PROFILE", section_heading_style))
+            left_elements.append(Paragraph(summary_text, body_style))
+            left_elements.append(Spacer(1, 12))
 
         # Skills
         if skills_list:
-            left_column.append(Paragraph("SKILLS", section_heading_style))
+            left_elements.append(Paragraph("SKILLS", section_heading_style))
             for s in skills_list:
                 skill_line = s.get('skill', '')
                 proficiency = s.get('proficiency')
                 if proficiency:
                     skill_line += f" ({proficiency})"
-                left_column.append(Paragraph("• " + skill_line, body_style))
-            left_column.append(Spacer(1, 12))
+                left_elements.append(Paragraph("• " + skill_line, body_style))
+            left_elements.append(Spacer(1, 12))
 
-        # Right column
-        right_column = []
+        # Languages
+        if languages:
+            left_elements.append(Paragraph("LANGUAGES", section_heading_style))
+            for lang in languages:
+                lang_name = lang.get('language', '')
+                proficiency = lang.get('proficiency', '')
+                if lang_name and proficiency:
+                    left_elements.append(Paragraph(f"• {lang_name} - {proficiency}", body_style))
+            left_elements.append(Spacer(1, 12))
+
+        # Right column content
+        right_elements = []
 
         # Experience
         if experiences:
-            right_column.append(Paragraph("EXPERIENCE", section_heading_style))
+            right_elements.append(Paragraph("EXPERIENCE", section_heading_style))
             for exp in experiences:
                 position = exp.get('position', '')
                 company = exp.get('company', '')
@@ -556,16 +602,16 @@ async def download_resume_pdf(
                 end_date = exp.get('end_date', '')
                 desc = exp.get('description', '')
 
-                right_column.append(Paragraph(f"<b>{position}</b> - {company}", body_style))
+                right_elements.append(Paragraph(f"<b>{position}</b> - {company}", body_style))
                 date_info = f"{start_date} - {end_date}"
-                right_column.append(Paragraph(date_info, info_style))
+                right_elements.append(Paragraph(date_info, info_style))
                 if desc.strip():
-                    right_column.append(Paragraph(desc, body_style))
-                right_column.append(Spacer(1, 10))
+                    right_elements.append(Paragraph(desc, body_style))
+                right_elements.append(Spacer(1, 10))
 
         # Education
         if educations:
-            right_column.append(Paragraph("EDUCATION", section_heading_style))
+            right_elements.append(Paragraph("EDUCATION", section_heading_style))
             for edu in educations:
                 deg = edu.get('degree', '')
                 inst = edu.get('institution', '')
@@ -573,58 +619,97 @@ async def download_resume_pdf(
                 ed = edu.get('end_date', '')
                 dsc = edu.get('description', '')
 
-                right_column.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style))
+                right_elements.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style))
                 date_info = f"{sd} - {ed}"
-                right_column.append(Paragraph(date_info, info_style))
+                right_elements.append(Paragraph(date_info, info_style))
                 if dsc.strip():
-                    right_column.append(Paragraph(dsc, body_style))
-                right_column.append(Spacer(1, 10))
+                    right_elements.append(Paragraph(dsc, body_style))
+                right_elements.append(Spacer(1, 10))
 
         # Projects
         if projects:
-            right_column.append(Paragraph("PROJECTS", section_heading_style))
+            right_elements.append(Paragraph("PROJECTS", section_heading_style))
             for proj in projects:
                 proj_name = proj.get('name', '')
                 description = proj.get('description', '')
                 link = proj.get('link', '')
 
-                right_column.append(Paragraph(f"<b>{proj_name}</b>", body_style))
+                right_elements.append(Paragraph(f"<b>{proj_name}</b>", body_style))
                 if link:
-                    right_column.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", body_style))
+                    right_elements.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", body_style))
                 if description.strip():
-                    right_column.append(Paragraph(description, body_style))
-                right_column.append(Spacer(1, 10))
+                    right_elements.append(Paragraph(description, body_style))
+                right_elements.append(Spacer(1, 10))
 
         # Certifications
         if certifications:
-            right_column.append(Paragraph("CERTIFICATIONS", section_heading_style))
+            right_elements.append(Paragraph("CERTIFICATIONS", section_heading_style))
             for cert in certifications:
                 title = cert.get('title', '')
                 issuer = cert.get('issuer', '')
                 cdate = cert.get('date', '')
 
-                right_column.append(Paragraph(f"<b>{title}</b>", body_style))
-                right_column.append(Paragraph(f"Issuer: {issuer}", body_style))
-                right_column.append(Paragraph(f"Date: {cdate}", body_style))
-                right_column.append(Spacer(1, 10))
+                right_elements.append(Paragraph(f"<b>{title}</b>", body_style))
+                right_elements.append(Paragraph(f"Issuer: {issuer}", body_style))
+                right_elements.append(Paragraph(f"Date: {cdate}", body_style))
+                right_elements.append(Spacer(1, 10))
 
-        content_table_data = [[left_column, right_column]]
-        content_table = Table(content_table_data, colWidths=[2.5*inch, 5*inch])
-        content_table.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LINEBEFORE', (1,0), (1,-1), 1, vertical_line_color),
-            ('LEFTPADDING', (0,0), (0,0), 12),
-            ('RIGHTPADDING', (0,0), (0,0), 6),
-            ('LEFTPADDING', (1,0), (1,0), 12),
-            ('RIGHTPADDING', (1,0), (1,0), 6),
-        ]))
-        elements.append(content_table)
+        # Create the two-column layout
+        content = []
+        current_row = [[], []]  # Left and right columns for current row
+        
+        # Helper function to add content to table
+        def add_to_table(elements, column_index):
+            for element in elements:
+                current_row[column_index].append(element)
+        
+        # Create a frame for the content
+        frame_width = doc.width
+        frame_height = doc.height - 50  # Leave some space for margins
+        
+        # Add left column content
+        add_to_table(left_elements, 0)
+        # Add right column content
+        add_to_table(right_elements, 1)
+
+        # After adding content to columns
+        # Create table with current content
+        if current_row[0] or current_row[1]:
+            # Make sure both columns have the same number of elements
+            max_len = max(len(current_row[0]), len(current_row[1]))
+            while len(current_row[0]) < max_len:
+                current_row[0].append(Spacer(1, 1))
+            while len(current_row[1]) < max_len:
+                current_row[1].append(Spacer(1, 1))
+            
+            # Create tables for each row to allow better splitting
+            for i in range(0, max_len, 10):  # Process 10 elements at a time
+                chunk_left = current_row[0][i:i+10]
+                chunk_right = current_row[1][i:i+10]
+                
+                if chunk_left or chunk_right:
+                    table = Table([[chunk_left, chunk_right]], colWidths=[2.5*inch, 5*inch])
+                    table.setStyle(TableStyle([
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('LEFTPADDING', (0,0), (-1,-1), 12),
+                        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+                        ('LINEBEFORE', (1,0), (1,-1), 1, vertical_line_color),
+                        ('SPLITLONGWORDS', (0,0), (-1,-1), True),
+                        ('SPACESHRINKAGE', (0,0), (-1,-1), 0.8),
+                    ]))
+                    elements.append(table)
+                    if i + 10 < max_len:  # Don't add space after the last chunk
+                        elements.append(Spacer(1, 6))  # Add some space between chunks
 
         try:
-            # Build the PDF
-            doc.build(elements)
+            # Build the PDF with allowSplitting=True
+            doc.build(elements, canvasmaker=NumberedCanvas)
         except Exception as e:
             print("Error building PDF:", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating PDF: {str(e)}"
+            )
 
         # Cleanup temp file
         def cleanup():
@@ -644,3 +729,12 @@ async def download_resume_pdf(
             status_code=500,
             detail=f"Error generating PDF: {str(e)}"
         )
+
+def create_section(title, items, style_heading, style_body, style_info):
+    elements = []
+    elements.append(Paragraph(title, style_heading))
+    for item in items:
+        for p in item:
+            elements.append(p)
+        elements.append(Spacer(1, 8))
+    return elements

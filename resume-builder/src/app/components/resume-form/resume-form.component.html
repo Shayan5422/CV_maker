@@ -1,0 +1,214 @@
+<form [formGroup]="resumeForm" (ngSubmit)="onSubmit()">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Personal Information -->
+    <div class="space-y-4">
+      <div>
+        <label for="full_name" class="block text-sm font-medium text-gray-700">Full Name</label>
+        <input type="text" id="full_name" formControlName="full_name" 
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <div *ngIf="resumeForm.get('full_name')?.errors?.['required'] && resumeForm.get('full_name')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Full name is required
+        </div>
+      </div>
+
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+        <input type="email" id="email" formControlName="email" 
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <div *ngIf="resumeForm.get('email')?.errors?.['required'] && resumeForm.get('email')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Email is required
+        </div>
+        <div *ngIf="resumeForm.get('email')?.errors?.['email'] && resumeForm.get('email')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Please enter a valid email
+        </div>
+      </div>
+
+      <div>
+        <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
+        <input type="tel" id="phone" formControlName="phone" 
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <div *ngIf="resumeForm.get('phone')?.errors?.['required'] && resumeForm.get('phone')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Phone number is required
+        </div>
+      </div>
+
+      <div>
+        <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+        <input type="text" id="city" formControlName="city" 
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <div *ngIf="resumeForm.get('city')?.errors?.['required'] && resumeForm.get('city')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          City is required
+        </div>
+      </div>
+
+      <div>
+        <label for="language" class="block text-sm font-medium text-gray-700">Language</label>
+        <select id="language" formControlName="language" 
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          <option value="">Select a language</option>
+          <option value="English">English</option>
+          <option value="Persian">Persian</option>
+          <option value="Arabic">Arabic</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Spanish">Spanish</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Japanese">Japanese</option>
+        </select>
+        <div *ngIf="resumeForm.get('language')?.errors?.['required'] && resumeForm.get('language')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Language is required
+        </div>
+      </div>
+    </div>
+
+    <!-- Professional Information -->
+    <div class="space-y-4">
+      <div>
+        <label for="title" class="block text-sm font-medium text-gray-700">Professional Title</label>
+        <input type="text" id="title" formControlName="title" 
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <div *ngIf="resumeForm.get('title')?.errors?.['required'] && resumeForm.get('title')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Professional title is required
+        </div>
+      </div>
+
+      <div>
+        <label for="summary" class="block text-sm font-medium text-gray-700">Professional Summary</label>
+        <textarea id="summary" formControlName="summary" rows="4"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+        <div *ngIf="resumeForm.get('summary')?.errors?.['required'] && resumeForm.get('summary')?.touched" 
+             class="text-red-500 text-sm mt-1">
+          Professional summary is required
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Education Section -->
+  <div class="mt-6">
+    <h3 class="text-lg font-medium text-gray-900">Education</h3>
+    <div formArrayName="education">
+      <div *ngFor="let edu of educationArray.controls; let i=index" [formGroupName]="i" class="mt-4 p-4 border rounded-lg bg-gray-50">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label [for]="'degree-'+i" class="block text-sm font-medium text-gray-700">Degree</label>
+            <input [id]="'degree-'+i" type="text" formControlName="degree" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'school-'+i" class="block text-sm font-medium text-gray-700">School</label>
+            <input [id]="'school-'+i" type="text" formControlName="school" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'field-'+i" class="block text-sm font-medium text-gray-700">Field of Study</label>
+            <input [id]="'field-'+i" type="text" formControlName="field" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'startDate-'+i" class="block text-sm font-medium text-gray-700">Start Date</label>
+            <input [id]="'startDate-'+i" type="date" formControlName="startDate" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'endDate-'+i" class="block text-sm font-medium text-gray-700">End Date</label>
+            <input [id]="'endDate-'+i" type="date" formControlName="endDate" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+        </div>
+        <button type="button" (click)="educationArray.removeAt(i)" 
+                class="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200">
+          Remove
+        </button>
+      </div>
+    </div>
+    <button type="button" (click)="addEducation()" 
+            class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200">
+      Add Education
+    </button>
+  </div>
+
+  <!-- Experience Section -->
+  <div class="mt-6">
+    <h3 class="text-lg font-medium text-gray-900">Experience</h3>
+    <div formArrayName="experience">
+      <div *ngFor="let exp of experienceArray.controls; let i=index" [formGroupName]="i" class="mt-4 p-4 border rounded-lg bg-gray-50">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label [for]="'exp-title-'+i" class="block text-sm font-medium text-gray-700">Title</label>
+            <input [id]="'exp-title-'+i" type="text" formControlName="title" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'company-'+i" class="block text-sm font-medium text-gray-700">Company</label>
+            <input [id]="'company-'+i" type="text" formControlName="company" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'location-'+i" class="block text-sm font-medium text-gray-700">Location</label>
+            <input [id]="'location-'+i" type="text" formControlName="location" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'exp-startDate-'+i" class="block text-sm font-medium text-gray-700">Start Date</label>
+            <input [id]="'exp-startDate-'+i" type="date" formControlName="startDate" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label [for]="'exp-endDate-'+i" class="block text-sm font-medium text-gray-700">End Date</label>
+            <input [id]="'exp-endDate-'+i" type="date" formControlName="endDate" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          </div>
+          <div class="md:col-span-2">
+            <label [for]="'description-'+i" class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea [id]="'description-'+i" formControlName="description" rows="3"
+                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+          </div>
+        </div>
+        <button type="button" (click)="experienceArray.removeAt(i)" 
+                class="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200">
+          Remove
+        </button>
+      </div>
+    </div>
+    <button type="button" (click)="addExperience()" 
+            class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200">
+      Add Experience
+    </button>
+  </div>
+
+  <!-- Skills Section -->
+  <div class="mt-6">
+    <h3 class="text-lg font-medium text-gray-900">Skills</h3>
+    <div formArrayName="skills">
+      <div *ngFor="let skill of skillsArray.controls; let i=index" class="mt-4">
+        <div class="flex items-center gap-2">
+          <input [id]="'skill-'+i" type="text" [formControlName]="i"
+                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+          <button type="button" (click)="skillsArray.removeAt(i)"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200">
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+    <button type="button" (click)="addSkill()" 
+            class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200">
+      Add Skill
+    </button>
+  </div>
+
+  <div class="mt-6">
+    <button type="submit" [disabled]="!resumeForm.valid"
+            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+      Save Resume
+    </button>
+  </div>
+</form> 
