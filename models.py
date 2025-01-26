@@ -29,5 +29,13 @@ class Resume(Base):
     certifications = Column(Text)  # Will store JSON string of certification items
     languages = Column(Text)     # Will store JSON string of language items
     photo = Column(String, nullable=True)
+    # Section Titles
+    experience_title = Column(String, default="EXPERIENCE")
+    education_title = Column(String, default="EDUCATION")
+    skills_title = Column(String, default="SKILLS")
+    projects_title = Column(String, default="PROJECTS")
+    certifications_title = Column(String, default="CERTIFICATIONS")
+    languages_title = Column(String, default="LANGUAGES")
+    summary_title = Column(String, default="PROFILE")
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="resumes")

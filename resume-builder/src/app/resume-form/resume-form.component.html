@@ -118,11 +118,23 @@
             </div>
 
             <!-- Languages Section -->
-            <section formArrayName="languages" class="space-y-6 bg-gray-50 rounded-lg p-6">
+            <section class="space-y-6 bg-gray-50 rounded-lg p-6">
               <div class="flex items-center justify-between border-b pb-4">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-4">
                   <i class="fas fa-language text-lg text-blue-600"></i>
-                  <h2 class="text-xl font-medium">Languages</h2>
+                  <h2 class="text-xl font-medium" *ngIf="!isEditingLanguagesTitle">{{ f['languages_title'].value || 'LANGUAGES' }}</h2>
+                  <input type="text"
+                         *ngIf="isEditingLanguagesTitle"
+                         formControlName="languages_title"
+                         class="text-xl font-medium bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                         (blur)="toggleTitleEdit('languages')"
+                         (keyup.enter)="toggleTitleEdit('languages')"
+                         [value]="f['languages_title'].value">
+                  <button type="button" 
+                          (click)="toggleTitleEdit('languages')"
+                          class="text-gray-400 hover:text-blue-600 ml-2">
+                    <i class="fas" [class.fa-edit]="!isEditingLanguagesTitle" [class.fa-check]="isEditingLanguagesTitle"></i>
+                  </button>
                 </div>
                 <button type="button" 
                         (click)="addLanguage()" 
@@ -132,52 +144,54 @@
                 </button>
               </div>
 
-              <div *ngFor="let lang of languagesArray.controls; let i = index"
-                   [formGroupName]="i"
-                   class="bg-white rounded-lg shadow-sm p-6 relative">
-                <!-- Remove Button -->
-                <button type="button"
-                        (click)="removeLanguage(i)"
-                        class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
+              <div formArrayName="languages">
+                <div *ngFor="let lang of languagesArray.controls; let i = index"
+                     [formGroupName]="i"
+                     class="bg-white rounded-lg shadow-sm p-6 relative">
+                  <!-- Remove Button -->
+                  <button type="button"
+                          (click)="removeLanguage(i)"
+                          class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
 
-                <!-- Language Form Fields -->
-                <div class="grid md:grid-cols-2 gap-6">
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Language</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-language text-gray-400"></i>
+                  <!-- Language Form Fields -->
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Language</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-language text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="language"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                       </div>
-                      <input type="text"
-                             formControlName="language"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                  </div>
 
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Proficiency Level</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-chart-bar text-gray-400"></i>
-                      </div>
-                      <select
-                        formControlName="proficiency"
-                        class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        [ngClass]="{'border-red-500': submitted && lang.get('proficiency')?.errors}"
-                      >
-                        <option value="">Select proficiency level</option>
-                        <option value="Elementary">Elementary (A1)</option>
-                        <option value="Basic">Basic (A2)</option>
-                        <option value="Intermediate">Intermediate (B1)</option>
-                        <option value="Upper Intermediate">Upper Intermediate (B2)</option>
-                        <option value="Advanced">Advanced (C1)</option>
-                        <option value="Mastery">Mastery (C2)</option>
-                        <option value="Native">Native</option>
-                      </select>
-                      <div *ngIf="submitted && lang.get('proficiency')?.errors" class="mt-1 text-sm text-red-600">
-                        <span *ngIf="lang.get('proficiency')?.errors?.['required']">Proficiency level is required</span>
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Proficiency Level</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-chart-bar text-gray-400"></i>
+                        </div>
+                        <select
+                          formControlName="proficiency"
+                          class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          [ngClass]="{'border-red-500': submitted && lang.get('proficiency')?.errors}"
+                        >
+                          <option value="">Select proficiency level</option>
+                          <option value="Elementary">Elementary (A1)</option>
+                          <option value="Basic">Basic (A2)</option>
+                          <option value="Intermediate">Intermediate (B1)</option>
+                          <option value="Upper Intermediate">Upper Intermediate (B2)</option>
+                          <option value="Advanced">Advanced (C1)</option>
+                          <option value="Mastery">Mastery (C2)</option>
+                          <option value="Native">Native</option>
+                        </select>
+                        <div *ngIf="submitted && lang.get('proficiency')?.errors" class="mt-1 text-sm text-red-600">
+                          <span *ngIf="lang.get('proficiency')?.errors?.['required']">Proficiency level is required</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -222,11 +236,23 @@
           </section>
   
           <!-- Experience Section -->
-          <section formArrayName="experience" class="space-y-6 bg-gray-50 rounded-lg p-6">
+          <section class="space-y-6 bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between border-b pb-4">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-4">
                 <i class="fas fa-briefcase text-lg text-blue-600"></i>
-                <h2 class="text-xl font-medium">Experience</h2>
+                <h2 class="text-xl font-medium" *ngIf="!isEditingExperienceTitle">{{ f['experience_title'].value || 'EXPERIENCE' }}</h2>
+                <input type="text"
+                       *ngIf="isEditingExperienceTitle"
+                       formControlName="experience_title"
+                       class="text-xl font-medium bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                       (blur)="toggleTitleEdit('experience')"
+                       (keyup.enter)="toggleTitleEdit('experience')"
+                       [value]="f['experience_title'].value">
+                <button type="button" 
+                        (click)="toggleTitleEdit('experience')"
+                        class="text-gray-400 hover:text-blue-600 ml-2">
+                  <i class="fas" [class.fa-edit]="!isEditingExperienceTitle" [class.fa-check]="isEditingExperienceTitle"></i>
+                </button>
               </div>
               <button type="button" 
                       (click)="addExperience()" 
@@ -236,107 +262,121 @@
               </button>
             </div>
   
-            <div *ngFor="let exp of experienceArray.controls; let i = index" 
-                 [formGroupName]="i" 
-                 class="bg-white rounded-lg shadow-sm p-6 relative">
-              <!-- Remove Button -->
-              <button type="button" 
-                      (click)="removeExperience(i)"
-                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+            <div formArrayName="experience">
+              <div *ngFor="let exp of experienceArray.controls; let i = index" 
+                   [formGroupName]="i" 
+                   class="bg-white rounded-lg shadow-sm p-6 relative">
+                <!-- Remove Button -->
+                <button type="button" 
+                        (click)="removeExperience(i)"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
   
-              <!-- Experience Form Fields -->
-              <div class="grid gap-6">
-                <div class="grid md:grid-cols-2 gap-6">
-                  <!-- Company -->
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Company</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-building text-gray-400"></i>
+                <!-- Experience Form Fields -->
+                <div class="grid gap-6">
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Company -->
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Company</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-building text-gray-400"></i>
+                        </div>
+                        <input type="text" 
+                               formControlName="company"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               [ngClass]="{'border-red-500': submitted && exp.get('company')?.errors}">
                       </div>
-                      <input type="text" 
-                             formControlName="company"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                             [ngClass]="{'border-red-500': submitted && exp.get('company')?.errors}">
+                    </div>
+  
+                    <!-- Position -->
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-id-badge text-gray-400"></i>
+                        </div>
+                        <input type="text" 
+                               formControlName="position"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               [ngClass]="{'border-red-500': submitted && exp.get('position')?.errors}">
+                      </div>
                     </div>
                   </div>
   
-                  <!-- Position -->
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-id-badge text-gray-400"></i>
+                  <!-- Experience Dates -->
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Start Date -->
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-calendar text-gray-400"></i>
+                        </div>
+                        <input type="date" 
+                               formControlName="start_date"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                       </div>
-                      <input type="text" 
-                             formControlName="position"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                             [ngClass]="{'border-red-500': submitted && exp.get('position')?.errors}">
+                    </div>
+  
+                    <!-- End Date -->
+                    <div class="form-group">
+                      <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-gray-700">End Date</label>
+                        <div class="flex items-center">
+                          <input type="checkbox"
+                                 [formControlName]="'is_current'"
+                                 class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                 (change)="exp.get('end_date')?.setValue('')">
+                          <span class="ml-2 text-sm text-gray-600">Currently Working</span>
+                        </div>
+                      </div>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-calendar text-gray-400"></i>
+                        </div>
+                        <input type="date" 
+                               formControlName="end_date"
+                               [required]="!exp.get('is_current')?.value"
+                               [attr.disabled]="exp.get('is_current')?.value"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               [ngClass]="{'bg-gray-100': exp.get('is_current')?.value}">
+                      </div>
                     </div>
                   </div>
-                </div>
   
-                <!-- Experience Dates -->
-                <div class="grid md:grid-cols-2 gap-6">
-                  <!-- Start Date -->
+                  <!-- Description -->
                   <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-calendar text-gray-400"></i>
-                      </div>
-                      <input type="date" 
-                             formControlName="start_date"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea formControlName="description"
+                              rows="3"
+                              class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </textarea>
                   </div>
-  
-                  <!-- End Date -->
-                  <div class="form-group">
-                    <div class="flex items-center justify-between mb-2">
-                      <label class="block text-sm font-medium text-gray-700">End Date</label>
-                      <div class="flex items-center">
-                        <input type="checkbox"
-                               [formControlName]="'is_current'"
-                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                               (change)="exp.get('end_date')?.setValue('')">
-                        <span class="ml-2 text-sm text-gray-600">Currently Working</span>
-                      </div>
-                    </div>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-calendar text-gray-400"></i>
-                      </div>
-                      <input type="date" 
-                             formControlName="end_date"
-                             [required]="!exp.get('is_current')?.value"
-                             [attr.disabled]="exp.get('is_current')?.value"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                             [ngClass]="{'bg-gray-100': exp.get('is_current')?.value}">
-                    </div>
-                  </div>
-                </div>
-  
-                <!-- Description -->
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea formControlName="description"
-                            rows="3"
-                            class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  </textarea>
                 </div>
               </div>
             </div>
           </section>
   
           <!-- Education Section -->
-          <section formArrayName="education" class="space-y-6 bg-gray-50 rounded-lg p-6">
+          <section class="space-y-6 bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between border-b pb-4">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-4">
                 <i class="fas fa-graduation-cap text-lg text-blue-600"></i>
-                <h2 class="text-xl font-medium">Education</h2>
+                <h2 class="text-xl font-medium" *ngIf="!isEditingEducationTitle">{{ f['education_title'].value || 'EDUCATION' }}</h2>
+                <input type="text"
+                       *ngIf="isEditingEducationTitle"
+                       formControlName="education_title"
+                       class="text-xl font-medium bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                       (blur)="toggleTitleEdit('education')"
+                       (keyup.enter)="toggleTitleEdit('education')"
+                       [value]="f['education_title'].value">
+                <button type="button" 
+                        (click)="toggleTitleEdit('education')"
+                        class="text-gray-400 hover:text-blue-600 ml-2">
+                  <i class="fas" [class.fa-edit]="!isEditingEducationTitle" [class.fa-check]="isEditingEducationTitle"></i>
+                </button>
               </div>
               <button type="button" 
                       (click)="addEducation()"
@@ -346,102 +386,116 @@
               </button>
             </div>
   
-            <div *ngFor="let edu of educationArray.controls; let i = index"
-                 [formGroupName]="i"
-                 class="bg-white rounded-lg shadow-sm p-6 relative">
-              <!-- Remove Button -->
-              <button type="button"
-                      (click)="removeEducation(i)"
-                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+            <div formArrayName="education">
+              <div *ngFor="let edu of educationArray.controls; let i = index"
+                   [formGroupName]="i"
+                   class="bg-white rounded-lg shadow-sm p-6 relative">
+                <!-- Remove Button -->
+                <button type="button"
+                        (click)="removeEducation(i)"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
   
-              <!-- Education Form Fields -->
-              <div class="grid gap-6">
-                <!-- Institution & Degree -->
-                <div class="grid md:grid-cols-2 gap-6">
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Institution</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-university text-gray-400"></i>
+                <!-- Education Form Fields -->
+                <div class="grid gap-6">
+                  <!-- Institution & Degree -->
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Institution</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-university text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="institution"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                       </div>
-                      <input type="text"
-                             formControlName="institution"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+  
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Degree</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-scroll text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="degree"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </div>
                     </div>
                   </div>
   
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Degree</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-scroll text-gray-400"></i>
+                  <!-- Education Dates -->
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-calendar text-gray-400"></i>
+                        </div>
+                        <input type="date"
+                               formControlName="start_date"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                       </div>
-                      <input type="text"
-                             formControlName="degree"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                  </div>
-                </div>
   
-                <!-- Education Dates -->
-                <div class="grid md:grid-cols-2 gap-6">
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-calendar text-gray-400"></i>
+                    <div class="form-group">
+                      <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-gray-700">End Date</label>
+                        <div class="flex items-center">
+                          <input type="checkbox"
+                                 [formControlName]="'is_current'"
+                                 class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                 (change)="edu.get('end_date')?.setValue('')">
+                          <span class="ml-2 text-sm text-gray-600">Currently Studying</span>
+                        </div>
                       </div>
-                      <input type="date"
-                             formControlName="start_date"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-calendar text-gray-400"></i>
+                        </div>
+                        <input type="date"
+                               formControlName="end_date"
+                               [required]="!edu.get('is_current')?.value"
+                               [attr.disabled]="edu.get('is_current')?.value"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               [ngClass]="{'bg-gray-100': edu.get('is_current')?.value}">
+                      </div>
                     </div>
                   </div>
-  
+          
+                  <!-- Description -->
                   <div class="form-group">
-                    <div class="flex items-center justify-between mb-2">
-                      <label class="block text-sm font-medium text-gray-700">End Date</label>
-                      <div class="flex items-center">
-                        <input type="checkbox"
-                               [formControlName]="'is_current'"
-                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                               (change)="edu.get('end_date')?.setValue('')">
-                        <span class="ml-2 text-sm text-gray-600">Currently Studying</span>
-                      </div>
-                    </div>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-calendar text-gray-400"></i>
-                      </div>
-                      <input type="date"
-                             formControlName="end_date"
-                             [required]="!edu.get('is_current')?.value"
-                             [attr.disabled]="edu.get('is_current')?.value"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                             [ngClass]="{'bg-gray-100': edu.get('is_current')?.value}">
-                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea formControlName="description"
+                             rows="3"
+                             class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </textarea>
                   </div>
-                </div>
-      
-                <!-- Description -->
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea formControlName="description"
-                           rows="3"
-                           class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  </textarea>
                 </div>
               </div>
             </div>
           </section>
       
           <!-- Skills Section -->
-          <section formArrayName="skills" class="space-y-6 bg-gray-50 rounded-lg p-6">
+          <section class="space-y-6 bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between border-b pb-4">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-4">
                 <i class="fas fa-tools text-lg text-blue-600"></i>
-                <h2 class="text-xl font-medium">Skills</h2>
+                <h2 class="text-xl font-medium" *ngIf="!isEditingSkillsTitle">{{ f['skills_title'].value || 'SKILLS' }}</h2>
+                <input type="text"
+                       *ngIf="isEditingSkillsTitle"
+                       formControlName="skills_title"
+                       class="text-xl font-medium bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                       (blur)="toggleTitleEdit('skills')"
+                       (keyup.enter)="toggleTitleEdit('skills')"
+                       [value]="f['skills_title'].value">
+                <button type="button" 
+                        (click)="toggleTitleEdit('skills')"
+                        class="text-gray-400 hover:text-blue-600 ml-2">
+                  <i class="fas" [class.fa-edit]="!isEditingSkillsTitle" [class.fa-check]="isEditingSkillsTitle"></i>
+                </button>
               </div>
               <button type="button" 
                       (click)="addSkill()"
@@ -451,44 +505,46 @@
               </button>
             </div>
   
-            <div *ngFor="let skill of skillsArray.controls; let i = index"
-                 [formGroupName]="i"
-                 class="bg-white rounded-lg shadow-sm p-6 relative">
-              <!-- Remove Button -->
-              <button type="button"
-                      (click)="removeSkill(i)"
-                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+            <div formArrayName="skills">
+              <div *ngFor="let skill of skillsArray.controls; let i = index"
+                   [formGroupName]="i"
+                   class="bg-white rounded-lg shadow-sm p-6 relative">
+                <!-- Remove Button -->
+                <button type="button"
+                        (click)="removeSkill(i)"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
   
-              <!-- Skill Form Fields -->
-              <div class="grid md:grid-cols-2 gap-6">
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Skill Name</label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <i class="fas fa-star text-gray-400"></i>
+                <!-- Skill Form Fields -->
+                <div class="grid md:grid-cols-2 gap-6">
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Skill Name</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-star text-gray-400"></i>
+                      </div>
+                      <input type="text"
+                             formControlName="skill"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <input type="text"
-                           formControlName="skill"
-                           class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   </div>
-                </div>
   
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Proficiency</label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <i class="fas fa-chart-bar text-gray-400"></i>
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Proficiency</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-chart-bar text-gray-400"></i>
+                      </div>
+                      <select formControlName="proficiency"
+                              class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select Proficiency</option>
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                        <option value="Expert">Expert</option>
+                      </select>
                     </div>
-                    <select formControlName="proficiency"
-                            class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="">Select Proficiency</option>
-                      <option value="Beginner">Beginner</option>
-                      <option value="Intermediate">Intermediate</option>
-                      <option value="Advanced">Advanced</option>
-                      <option value="Expert">Expert</option>
-                    </select>
                   </div>
                 </div>
               </div>
@@ -496,11 +552,23 @@
           </section>
   
           <!-- Projects Section -->
-          <section formArrayName="projects" class="space-y-6 bg-gray-50 rounded-lg p-6">
+          <section class="space-y-6 bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between border-b pb-4">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-4">
                 <i class="fas fa-project-diagram text-lg text-blue-600"></i>
-                <h2 class="text-xl font-medium">Projects</h2>
+                <h2 class="text-xl font-medium" *ngIf="!isEditingProjectsTitle">{{ f['projects_title'].value || 'PROJECTS' }}</h2>
+                <input type="text"
+                       *ngIf="isEditingProjectsTitle"
+                       formControlName="projects_title"
+                       class="text-xl font-medium bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                       (blur)="toggleTitleEdit('projects')"
+                       (keyup.enter)="toggleTitleEdit('projects')"
+                       [value]="f['projects_title'].value">
+                <button type="button" 
+                        (click)="toggleTitleEdit('projects')"
+                        class="text-gray-400 hover:text-blue-600 ml-2">
+                  <i class="fas" [class.fa-edit]="!isEditingProjectsTitle" [class.fa-check]="isEditingProjectsTitle"></i>
+                </button>
               </div>
               <button type="button" 
                       (click)="addProject()"
@@ -510,47 +578,49 @@
               </button>
             </div>
   
-            <div *ngFor="let project of projectsArray.controls; let i = index"
-                 [formGroupName]="i"
-                 class="bg-white rounded-lg shadow-sm p-6 relative">
-              <!-- Remove Button -->
-              <button type="button"
-                      (click)="removeProject(i)"
-                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+            <div formArrayName="projects">
+              <div *ngFor="let project of projectsArray.controls; let i = index"
+                   [formGroupName]="i"
+                   class="bg-white rounded-lg shadow-sm p-6 relative">
+                <!-- Remove Button -->
+                <button type="button"
+                        (click)="removeProject(i)"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
   
-              <!-- Project Form Fields -->
-              <div class="grid gap-6">
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <i class="fas fa-folder text-gray-400"></i>
+                <!-- Project Form Fields -->
+                <div class="grid gap-6">
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-folder text-gray-400"></i>
+                      </div>
+                      <input type="text"
+                             formControlName="name"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <input type="text"
-                           formControlName="name"
-                           class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   </div>
-                </div>
   
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea formControlName="description"
-                           rows="3"
-                           class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  </textarea>
-                </div>
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea formControlName="description"
+                             rows="3"
+                             class="block w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </textarea>
+                  </div>
   
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Project Link (Optional)</label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <i class="fas fa-link text-gray-400"></i>
+                  <div class="form-group">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Project Link (Optional)</label>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-link text-gray-400"></i>
+                      </div>
+                      <input type="url"
+                             formControlName="link"
+                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <input type="url"
-                           formControlName="link"
-                           class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   </div>
                 </div>
               </div>
@@ -558,11 +628,23 @@
           </section>
   
           <!-- Certifications Section -->
-          <section formArrayName="certifications" class="space-y-6 bg-gray-50 rounded-lg p-6">
+          <section class="space-y-6 bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between border-b pb-4">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-4">
                 <i class="fas fa-certificate text-lg text-blue-600"></i>
-                <h2 class="text-xl font-medium">Certifications</h2>
+                <h2 class="text-xl font-medium" *ngIf="!isEditingCertificationsTitle">{{ f['certifications_title'].value || 'CERTIFICATIONS' }}</h2>
+                <input type="text"
+                       *ngIf="isEditingCertificationsTitle"
+                       formControlName="certifications_title"
+                       class="text-xl font-medium bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                       (blur)="toggleTitleEdit('certifications')"
+                       (keyup.enter)="toggleTitleEdit('certifications')"
+                       [value]="f['certifications_title'].value">
+                <button type="button" 
+                        (click)="toggleTitleEdit('certifications')"
+                        class="text-gray-400 hover:text-blue-600 ml-2">
+                  <i class="fas" [class.fa-edit]="!isEditingCertificationsTitle" [class.fa-check]="isEditingCertificationsTitle"></i>
+                </button>
               </div>
               <button type="button" 
                       (click)="addCertification()"
@@ -572,53 +654,55 @@
               </button>
             </div>
   
-            <div *ngFor="let cert of certificationsArray.controls; let i = index"
-                 [formGroupName]="i"
-                 class="bg-white rounded-lg shadow-sm p-6 relative">
-              <!-- Remove Button -->
-              <button type="button"
-                      (click)="removeCertification(i)"
-                      class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+            <div formArrayName="certifications">
+              <div *ngFor="let cert of certificationsArray.controls; let i = index"
+                   [formGroupName]="i"
+                   class="bg-white rounded-lg shadow-sm p-6 relative">
+                <!-- Remove Button -->
+                <button type="button"
+                        (click)="removeCertification(i)"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
   
-              <!-- Certification Form Fields -->
-              <div class="grid gap-6">
-                <div class="grid md:grid-cols-2 gap-6">
-                  <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Certification Name</label>
-                    <div class="relative">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-award text-gray-400"></i>
+                <!-- Certification Form Fields -->
+                <div class="grid gap-6">
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Certification Name</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-award text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="title"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                       </div>
-                      <input type="text"
-                             formControlName="title"
-                             class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+  
+                    <div class="form-group">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Issuing Organization</label>
+                      <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <i class="fas fa-building text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               formControlName="issuer"
+                               class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      </div>
                     </div>
                   </div>
   
                   <div class="form-group">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Issuing Organization</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Date Received</label>
                     <div class="relative">
                       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-building text-gray-400"></i>
+                        <i class="fas fa-calendar-check text-gray-400"></i>
                       </div>
-                      <input type="text"
-                             formControlName="issuer"
+                      <input type="date"
+                             formControlName="date"
                              class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                  </div>
-                </div>
-  
-                <div class="form-group">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Date Received</label>
-                  <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <i class="fas fa-calendar-check text-gray-400"></i>
-                    </div>
-                    <input type="date"
-                           formControlName="date"
-                           class="block w-full pl-10 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   </div>
                 </div>
               </div>
@@ -626,19 +710,23 @@
           </section>
   
           <!-- Form Actions -->
-          <div class="flex justify-end gap-4 pt-6 border-t">
-            <button type="button"
-                    (click)="onCancel()"
-                    class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-              <i class="fas fa-times"></i>
-              Cancel
-            </button>
-            <button type="submit"
-                    [disabled]="loading"
-                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              <i class="fas" [class.fa-save]="!loading" [class.fa-spinner]="loading" [class.fa-spin]="loading"></i>
-              {{ loading ? 'Saving...' : 'Save Resume' }}
-            </button>
+          <div class="flex justify-between items-center gap-4 pt-6 border-t">
+           
+
+            
+              <button type="button"
+                      (click)="onCancel()"
+                      class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                <i class="fas fa-times"></i>
+                Cancel
+              </button>
+              <button type="submit"
+                      [disabled]="loading"
+                      class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas" [class.fa-save]="!loading" [class.fa-spinner]="loading" [class.fa-spin]="loading"></i>
+                {{ loading ? 'Saving...' : 'Save Resume' }}
+              </button>
+            
           </div>
         </form>
       </div>

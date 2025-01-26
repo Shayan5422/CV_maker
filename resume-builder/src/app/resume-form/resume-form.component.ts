@@ -21,6 +21,16 @@ export class ResumeFormComponent implements OnInit {
   submitted = false;
   existingPhoto: string | null = null;
 
+  // Title editing states with index signature
+  [key: string]: any;
+  isEditingLanguagesTitle = false;
+  isEditingExperienceTitle = false;
+  isEditingEducationTitle = false;
+  isEditingSkillsTitle = false;
+  isEditingProjectsTitle = false;
+  isEditingCertificationsTitle = false;
+  isEditingSummaryTitle = false;
+
   constructor(
     private formBuilder: FormBuilder,
     private resumeService: ResumeService,
@@ -35,14 +45,20 @@ export class ResumeFormComponent implements OnInit {
       city: ['', Validators.required],
       languages: this.formBuilder.array([this.createLanguageGroup()]),
       summary: ['', Validators.required],
-      // Experience and Education fields are maintained as FormArrays
       experience: this.formBuilder.array([this.createExperienceGroup()]),
       education: this.formBuilder.array([this.createEducationGroup()]),
-      // New Sections:
       skills: this.formBuilder.array([this.createSkillGroup()]),
       projects: this.formBuilder.array([this.createProjectGroup()]),
       certifications: this.formBuilder.array([this.createCertificationGroup()]),
-      photo: [null]
+      photo: [null],
+      // Section Titles with default values
+      experience_title: ['EXPERIENCE'],
+      education_title: ['EDUCATION'],
+      skills_title: ['SKILLS'],
+      projects_title: ['PROJECTS'],
+      certifications_title: ['CERTIFICATIONS'],
+      languages_title: ['LANGUAGES'],
+      summary_title: ['PROFILE']
     });
   }
 
@@ -204,7 +220,7 @@ export class ResumeFormComponent implements OnInit {
       this.loading = true;
       this.resumeService.getResume(this.resumeId).subscribe({
         next: (resume: any) => {
-          // Patch basic fields including photo
+          // Patch basic fields including photo and section titles
           this.resumeForm.patchValue({
             title: resume.title,
             full_name: resume.full_name,
@@ -212,7 +228,14 @@ export class ResumeFormComponent implements OnInit {
             phone: resume.phone,
             city: resume.city,
             summary: resume.summary,
-            photo: resume.photo
+            photo: resume.photo,
+            experience_title: resume.experience_title || 'EXPERIENCE',
+            education_title: resume.education_title || 'EDUCATION',
+            skills_title: resume.skills_title || 'SKILLS',
+            projects_title: resume.projects_title || 'PROJECTS',
+            certifications_title: resume.certifications_title || 'CERTIFICATIONS',
+            languages_title: resume.languages_title || 'LANGUAGES',
+            summary_title: resume.summary_title || 'PROFILE'
           });
 
           // Set the existing photo if available
@@ -281,9 +304,32 @@ export class ResumeFormComponent implements OnInit {
       }
     });
 
+    // Ensure section titles have values
+    const titleFields = {
+      experience_title: 'EXPERIENCE',
+      education_title: 'EDUCATION',
+      skills_title: 'SKILLS',
+      projects_title: 'PROJECTS',
+      certifications_title: 'CERTIFICATIONS',
+      languages_title: 'LANGUAGES',
+      summary_title: 'PROFILE'
+    };
+
+    // Set default values for empty section titles
+    Object.entries(titleFields).forEach(([field, defaultValue]) => {
+      if (!resumeData[field]) {
+        resumeData[field] = defaultValue;
+      }
+    });
+
+    console.log('Submitting resume data:', resumeData); // Debug log
+
     if (this.isEditing && this.resumeId) {
       this.resumeService.updateResume(this.resumeId, resumeData).subscribe({
-        next: () => this.router.navigate(['/resumes']),
+        next: () => {
+          console.log('Resume updated successfully');
+          this.router.navigate(['/resumes']);
+        },
         error: error => {
           console.error('Error updating resume:', error);
           this.loading = false;
@@ -291,7 +337,10 @@ export class ResumeFormComponent implements OnInit {
       });
     } else {
       this.resumeService.createResume(resumeData).subscribe({
-        next: () => this.router.navigate(['/resumes']),
+        next: () => {
+          console.log('Resume created successfully');
+          this.router.navigate(['/resumes']);
+        },
         error: error => {
           console.error('Error creating resume:', error);
           this.loading = false;
@@ -316,6 +365,42 @@ export class ResumeFormComponent implements OnInit {
         });
       };
       reader.readAsDataURL(file);
+    }
+  }
+
+  // Toggle title editing for a specific section
+  toggleTitleEdit(section: 'experience' | 'education' | 'skills' | 'projects' | 'certifications' | 'languages' | 'summary'): void {
+    const titleField = `${section}_title`;
+    const editingField = `isEditing${section.charAt(0).toUpperCase() + section.slice(1)}Title` as keyof ResumeFormComponent;
+    
+    if (this[editingField]) {
+      // If we're finishing editing, ensure there's a value
+      const currentValue = this.resumeForm.get(titleField)?.value;
+      if (!currentValue?.trim()) {
+        // Reset to default value if empty
+        const defaultValues = {
+          experience: 'EXPERIENCE',
+          education: 'EDUCATION',
+          skills: 'SKILLS',
+          projects: 'PROJECTS',
+          certifications: 'CERTIFICATIONS',
+          languages: 'LANGUAGES',
+          summary: 'PROFILE'
+        } as const;
+        this.resumeForm.patchValue({
+          [titleField]: defaultValues[section]
+        });
+      }
+    }
+    
+    this[editingField] = !this[editingField] as never;
+
+    // If we're exiting edit mode, trigger change detection
+    if (!this[editingField]) {
+      const value = this.resumeForm.get(titleField)?.value;
+      this.resumeForm.patchValue({
+        [titleField]: value
+      }, { emitEvent: true });
     }
   }
 }

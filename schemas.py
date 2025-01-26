@@ -67,6 +67,14 @@ class ResumeBase(BaseModel):
     certifications: str
     languages: str  # Add languages field
     photo: Optional[str] = None
+    # Section Titles
+    experience_title: str = "EXPERIENCE"
+    education_title: str = "EDUCATION"
+    skills_title: str = "SKILLS"
+    projects_title: str = "PROJECTS"
+    certifications_title: str = "CERTIFICATIONS"
+    languages_title: str = "LANGUAGES"
+    summary_title: str = "PROFILE"
 
     # Validators to ensure JSON strings are valid
     @field_validator('experience')

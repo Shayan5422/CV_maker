@@ -564,13 +564,13 @@ async def download_resume_pdf(
 
         # Profile summary
         if summary_text.strip():
-            left_elements.append(Paragraph("PROFILE", section_heading_style))
+            left_elements.append(Paragraph(resume.summary_title, section_heading_style))
             left_elements.append(Paragraph(summary_text, body_style))
             left_elements.append(Spacer(1, 12))
 
         # Skills
         if skills_list:
-            left_elements.append(Paragraph("SKILLS", section_heading_style))
+            left_elements.append(Paragraph(resume.skills_title, section_heading_style))
             for s in skills_list:
                 skill_line = s.get('skill', '')
                 proficiency = s.get('proficiency')
@@ -581,7 +581,7 @@ async def download_resume_pdf(
 
         # Languages
         if languages:
-            left_elements.append(Paragraph("LANGUAGES", section_heading_style))
+            left_elements.append(Paragraph(resume.languages_title, section_heading_style))
             for lang in languages:
                 lang_name = lang.get('language', '')
                 proficiency = lang.get('proficiency', '')
@@ -594,7 +594,7 @@ async def download_resume_pdf(
 
         # Experience
         if experiences:
-            right_elements.append(Paragraph("EXPERIENCE", section_heading_style))
+            right_elements.append(Paragraph(resume.experience_title, section_heading_style))
             for exp in experiences:
                 position = exp.get('position', '')
                 company = exp.get('company', '')
@@ -612,7 +612,7 @@ async def download_resume_pdf(
 
         # Education
         if educations:
-            right_elements.append(Paragraph("EDUCATION", section_heading_style))
+            right_elements.append(Paragraph(resume.education_title, section_heading_style))
             for edu in educations:
                 deg = edu.get('degree', '')
                 inst = edu.get('institution', '')
@@ -630,7 +630,7 @@ async def download_resume_pdf(
 
         # Projects
         if projects:
-            right_elements.append(Paragraph("PROJECTS", section_heading_style))
+            right_elements.append(Paragraph(resume.projects_title, section_heading_style))
             for proj in projects:
                 proj_name = proj.get('name', '')
                 description = proj.get('description', '')
@@ -645,7 +645,7 @@ async def download_resume_pdf(
 
         # Certifications
         if certifications:
-            right_elements.append(Paragraph("CERTIFICATIONS", section_heading_style))
+            right_elements.append(Paragraph(resume.certifications_title, section_heading_style))
             for cert in certifications:
                 title = cert.get('title', '')
                 issuer = cert.get('issuer', '')

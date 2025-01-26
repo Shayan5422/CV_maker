@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Resume } from '../models/resume.model';
-import { Observable, catchError, throwError } from 'rxjs';
+import { Observable, catchError, throwError, tap } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export interface ResumeTheme {
@@ -123,7 +123,9 @@ export class ResumeService {
 
   createResume(resume: Resume): Observable<Resume> {
     const headers = this.getAuthHeaders();
+    console.log('Creating resume with data:', resume); // Debug log
     return this.http.post<Resume>(this.apiUrl, resume, { headers }).pipe(
+      tap(response => console.log('Create response:', response)), // Debug log
       catchError(error => {
         console.error('Resume creation error:', error);
         return throwError(() => error);
@@ -133,7 +135,9 @@ export class ResumeService {
 
   updateResume(id: number, resume: Resume): Observable<Resume> {
     const headers = this.getAuthHeaders();
+    console.log('Updating resume with data:', resume); // Debug log
     return this.http.put<Resume>(`${this.apiUrl}/${id}`, resume, { headers }).pipe(
+      tap(response => console.log('Update response:', response)), // Debug log
       catchError(error => {
         console.error('Resume update error:', error);
         return throwError(() => error);
