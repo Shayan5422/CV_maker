@@ -632,11 +632,11 @@ async def download_resume_pdf(
                     contact_str = " | ".join(contact_items)
                     header_content.append(Paragraph(contact_str, blue_contact_style))
 
-                header_table = Table([[header_content]], colWidths=[7*inch])
+                header_table = Table([[header_content]], colWidths=[8.3*inch])
                 header_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, -1), light_blue),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 20),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),
                     ('TOPPADDING', (0, 0), (-1, -1), 20),
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
                 ]))
@@ -775,11 +775,11 @@ async def download_resume_pdf(
                         right_elements.append(Spacer(1, 10))
 
                 # Create two-column layout
-                content_table = Table([[left_elements, right_elements]], colWidths=[2.8*inch, 4.4*inch])  # Adjusted from [3*inch, 4*inch]
+                content_table = Table([[left_elements, right_elements]], colWidths=[2.8*inch, 5.4*inch])  # Adjusted from [3*inch, 4*inch]
                 content_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 10),    # Reduced from 15
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),   # Reduced from 15
+                    ('LEFTPADDING', (0, 0), (-1, -1), 20),    # Reduced from 15 000000
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 20),   # Reduced from 15
                     ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),  # Reduced line width from 1
                 ]))
                 elements.append(content_table)
@@ -847,13 +847,13 @@ async def download_resume_pdf(
                     left_col_flowables.append(Spacer(1, 10))
 
                 # Create left column table with purple background
-                left_table = Table([[flow] for flow in left_col_flowables], colWidths=[2.4 * inch])
+                left_table = Table([[flow] for flow in left_col_flowables], colWidths=[2.2 * inch])  # Reduced from 2.4 inch
                 left_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#4B0082')),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                    ('TOPPADDING', (0, 0), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 20),     # Reduced from 15
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),    # Reduced from 10
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),      # Reduced from 10
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),   # Reduced from 10
                 ]))
 
                 # Create right column flowables
@@ -942,9 +942,13 @@ async def download_resume_pdf(
                 # Combine into a two-column table
                 main_table = Table([
                     [left_table, right_col_flowables]
-                ], colWidths=[2.4 * inch, 4.2 * inch])
+                ], colWidths=[2.7 * inch, 5.6 * inch])  # Adjusted widths
                 main_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (0, -1), 0),    # Left column padding
+                    ('RIGHTPADDING', (-1, 0), (-1, -1), 8), # Right column padding
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
                 ]))
 
                 elements.append(main_table)
@@ -966,7 +970,7 @@ async def download_resume_pdf(
                     header_content.append(Paragraph(contact_str, contact_style_dark))
 
                 # Create dark header table
-                header_dark = Table([[header_content]], colWidths=[7*inch])
+                header_dark = Table([[header_content]], colWidths=[8.3*inch])
                 header_dark.setStyle(TableStyle([
                     ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#333333')),
                     ('LEFTPADDING', (0,0), (-1,-1), 20),
@@ -1107,11 +1111,11 @@ async def download_resume_pdf(
                         right_elements.append(Spacer(1, 10))
 
                 # Create two-column layout
-                content_table = Table([[left_elements, right_elements]], colWidths=[3*inch, 4*inch])
+                content_table = Table([[left_elements, right_elements]], colWidths=[2.7*inch, 5.3*inch])
                 content_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),   # Reduced from 20 sdsdsdsd
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 15),     # Reduced from 20 sdsds
                 ]))
                 elements.append(content_table)
 
@@ -1130,12 +1134,12 @@ async def download_resume_pdf(
                     header_right.append(Paragraph(email, contact_style_default))
 
                 header_table_data = [[header_left, header_right]]
-                header_table = Table(header_table_data, colWidths=[3.5*inch, 3.5*inch])
+                header_table = Table(header_table_data, colWidths=[2.7*inch, 5.6*inch])
                 header_table.setStyle(TableStyle([
                     ('VALIGN', (0,0), (-1,-1), 'TOP'),
                     ('LEFTPADDING', (0,0), (-1,-1), 20),
                     ('RIGHTPADDING', (0,0), (-1,-1), 20),
-                    ('TOPPADDING', (0,0), (-1,-1), 16),
+                    ('TOPPADDING', (0,0), (-1,-1), 0),
                 ]))
                 elements.append(header_table)
 
@@ -1279,11 +1283,11 @@ async def download_resume_pdf(
                         right_elements.append(Spacer(1, 10))
 
                 # Create two-column layout
-                content_table = Table([[left_elements, right_elements]], colWidths=[2.8*inch, 4.4*inch])  # Adjusted from [3*inch, 4*inch]
+                content_table = Table([[left_elements, right_elements]], colWidths=[2.3*inch, 5.7*inch])  # Adjusted from [3*inch, 4*inch]
                 content_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 10),    # Reduced from 15
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),   # Reduced from 15
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),    # Reduced from 15
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),   # Reduced from 15
                     ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),  # Reduced line width from 1
                 ]))
                 elements.append(content_table)
