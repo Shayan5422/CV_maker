@@ -56,8 +56,10 @@ export class ResumeListComponent implements OnInit {
     this.router.navigate(['/resumes/new']);
   }
 
-  editResume(id: number): void {
-    this.router.navigate(['/resumes/edit', id]);
+  editResume(id?: number): void {
+    if (id) {
+      this.router.navigate(['/resumes/edit', id]);
+    }
   }
 
   openThemeModal(resume: Resume): void {

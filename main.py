@@ -1,6 +1,5 @@
 # main.py
 import base64
-from fileinput import filename
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -19,6 +18,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 from fastapi.responses import FileResponse
 import json
 import io
@@ -222,34 +222,12 @@ def round_corners(image, radius=40):
 
 
 def draw_vertical_line(canvas, doc, line_color=colors.HexColor('#AAAAAA')):
-    """
-    Draw a vertical line that extends the full page height regardless of content
-    """
-    canvas.saveState()
-    canvas.setStrokeColor(line_color)
-    canvas.setLineWidth(0.5)
     
-    # X position for the vertical line (adjusted for new margins)
-    x_pos = doc.leftMargin + 2.5 * inch
-    
-    # Draw from bottom margin to top margin with some padding
-    canvas.line(x_pos, doc.bottomMargin + 5*mm, x_pos, A4[1] - doc.topMargin - 5*mm)
-    
-    canvas.restoreState()
-
-# Modify the SimpleDocTemplate initialization
-doc = SimpleDocTemplate(
-    filename,
-    pagesize=A4,
-    rightMargin=15*mm,    # Increased margin
-    leftMargin=15*mm,     # Increased margin
-    topMargin=15*mm,      # Increased margin
-    bottomMargin=15*mm,   # Increased margin
-    allowSplitting=1,     # Enable content splitting
-    # Apply vertical line to both first and subsequent pages
-    onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
-    onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
-)
+    try:
+        pass
+    except Exception as e:
+        pass
+        # Don't raise the error, just log it and continue
 
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -287,55 +265,129 @@ async def download_resume_pdf(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    resume = db.query(models.Resume).filter(
-        models.Resume.id == resume_id,
-        models.Resume.user_id == current_user.id
-    ).first()
-    if resume is None:
-        raise HTTPException(status_code=404, detail="Resume not found")
-
-    timestamp = int(datetime.now().timestamp())
-    filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
-
-    name = resume.full_name or ""
-    job_title = resume.title or ""
-    phone = resume.phone or ""
-    email = resume.email or ""
-    city = resume.city or ""
-    summary_text = resume.summary or ""
-    photo_data = resume.photo
-
-    def safe_load_json(json_str):
-        try:
-            return json.loads(json_str)
-        except:
-            return []
-
-    experiences = safe_load_json(resume.experience) if resume.experience else []
-    educations = safe_load_json(resume.education) if resume.education else []
-    skills_list = safe_load_json(resume.skills) if resume.skills else []
-    projects = safe_load_json(resume.projects) if resume.projects else []
-    certifications = safe_load_json(resume.certifications) if resume.certifications else []
-    languages = safe_load_json(resume.languages) if resume.languages else []
-
-    selected_theme = theme or ""
-
     try:
-        # ------------------------------------------------
-        # Build the PDF
-        # ------------------------------------------------
+        resume = db.query(models.Resume).filter(
+            models.Resume.id == resume_id,
+            models.Resume.user_id == current_user.id
+        ).first()
+        if resume is None:
+            raise HTTPException(status_code=404, detail="Resume not found")
+
+        timestamp = int(datetime.now().timestamp())
+        filename = f"temp_resume_{resume_id}_{timestamp}.pdf"
+
+        name = resume.full_name or ""
+        job_title = resume.title or ""
+        phone = resume.phone or ""
+        email = resume.email or ""
+        city = resume.city or ""
+        summary_text = resume.summary or ""
+        photo_data = resume.photo
+
+        def safe_load_json(json_str):
+            if not json_str:
+                return []
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON: {e}")
+                return []
+            except Exception as e:
+                print(f"Unexpected error loading JSON: {e}")
+                return []
+
+        try:
+            experiences = safe_load_json(resume.experience)
+            educations = safe_load_json(resume.education)
+            skills_list = safe_load_json(resume.skills)
+            projects = safe_load_json(resume.projects)
+            certifications = safe_load_json(resume.certifications)
+            languages = safe_load_json(resume.languages)
+        except Exception as e:
+            print(f"Error loading resume data: {e}")
+            experiences = []
+            educations = []
+            skills_list = []
+            projects = []
+            certifications = []
+            languages = []
+
+        # Create the PDF document
         doc = SimpleDocTemplate(
             filename,
             pagesize=A4,
-            rightMargin=15*mm,    # Increased margin
-            leftMargin=15*mm,     # Increased margin
-            topMargin=15*mm,      # Increased margin
-            bottomMargin=15*mm,   # Increased margin
-            allowSplitting=1,     # Enable content splitting
-            # Apply vertical line to both first and subsequent pages
-            onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
-            onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
+            rightMargin=0*mm,      # Reduced from 15mm
+            leftMargin=0*mm,       # Reduced from 15mm
+            topMargin=0*mm,       # Reduced from 15mm
+            bottomMargin=0*mm,    # Reduced from 15mm
+            allowSplitting=1
         )
+
+        # Get the default styles from ReportLab
+        styles = getSampleStyleSheet()
+
+        # Define common colors
+        line_color = colors.HexColor('#999999')
+        vertical_line_color = colors.HexColor('#AAAAAA')
+
+        # Define styles for default theme with improved spacing
+        name_style_default = ParagraphStyle(
+            'name_style_default',
+            parent=styles['Normal'],
+            fontSize=24,
+            leading=26,        # Reduced from 28
+            textColor=colors.HexColor('#333333'),
+            spaceAfter=4       # Reduced from 6
+        )
+
+        title_style_default = ParagraphStyle(
+            'title_style_default',
+            parent=styles['Normal'],
+            fontSize=16,
+            leading=18,        # Reduced from 20
+            textColor=colors.HexColor('#666666'),
+            spaceAfter=8       # Reduced from 12
+        )
+
+        contact_style_default = ParagraphStyle(
+            'contact_style_default',
+            parent=styles['Normal'],
+            fontSize=10,        # Reduced from 12
+            leading=12,         # Reduced from 14
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor('#666666')
+        )
+
+        section_heading_style_default = ParagraphStyle(
+            'section_heading_style_default',
+            parent=styles['Normal'],
+            fontSize=14,        # Reduced from 16
+            leading=16,         # Reduced from 20
+            textColor=colors.HexColor('#333333'),
+            spaceBefore=4,      # Reduced from 6
+            spaceAfter=6,       # Reduced from 8
+            bold=True
+        )
+
+        body_style_default = ParagraphStyle(
+            'body_style_default',
+            parent=styles['Normal'],
+            fontSize=10,        # Reduced from 12
+            leading=12,         # Reduced from 14
+            textColor=colors.HexColor('#333333'),
+            spaceAfter=4        # Reduced from 6
+        )
+
+        info_style_default = ParagraphStyle(
+            'info_style_default',
+            parent=styles['Normal'],
+            fontSize=9,         # Reduced from 11
+            leading=11,         # Reduced from 13
+            textColor=colors.HexColor('#666666'),
+            spaceAfter=4        # Reduced from 6
+        )
+
+        # Start building the PDF
         elements = []
 
         # Default (light) styles
@@ -434,280 +486,833 @@ async def download_resume_pdf(
             textColor=colors.HexColor('#555555')
         )
 
-        if selected_theme == "elegant-dark":
-            name_style = name_style_dark
-            title_style = title_style_dark
-            contact_style = contact_style_dark
-            section_heading_style = section_heading_style_dark
-            body_style = body_style_dark
-            info_style = info_style_dark
-
-            line_color = colors.HexColor('#FFFFFF')
-            vertical_line_color = colors.HexColor('#EEEEEE')
-        else:
-            name_style = name_style_default
-            title_style = title_style_default
-            contact_style = contact_style_default
-            section_heading_style = section_heading_style_default
-            body_style = body_style_default
-            info_style = info_style_default
-
-            line_color = colors.HexColor('#999999')
-            vertical_line_color = colors.HexColor('#AAAAAA')
-
-        # Header (dark theme example)
-        if selected_theme == "elegant-dark":
-            header_content = []
-            header_content.append(Paragraph(name.upper(), name_style))
-            if job_title:
-                header_content.append(Paragraph(job_title, title_style))
-
-            contact_info = []
-            if city:
-                contact_info.append(city)
-            if phone:
-                contact_info.append(phone)
-            if email:
-                contact_info.append(email)
-
-            if contact_info:
-                header_content.append(Paragraph(" | ".join(contact_info), contact_style))
-
-            header_dark_data = [[header_content]]
-            header_dark = Table(header_dark_data, colWidths=[8*inch])
-            header_dark.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#333333')),
-                ('LEFTPADDING', (0,0), (-1,-1), 20),
-                ('RIGHTPADDING', (0,0), (-1,-1), 20),
-                ('TOPPADDING', (0,0), (-1,-1), 16),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 16),
-            ]))
-            elements.append(header_dark)
-        else:
-            # Default header
-            header_left = []
-            header_left.append(Paragraph(name, name_style))
-            header_left.append(Paragraph(job_title, title_style))
-
-            header_right = []
-            if city:
-                header_right.append(Paragraph(city, contact_style))
-            if phone:
-                header_right.append(Paragraph(phone, contact_style))
-            if email:
-                header_right.append(Paragraph(email, contact_style))
-
-            header_table_data = [[header_left, header_right]]
-            header_table = Table(header_table_data, colWidths=[3.5*inch, 3.5*inch])
-            header_table.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('LEFTPADDING', (0,0), (-1,-1), 20),
-                ('RIGHTPADDING', (0,0), (-1,-1), 20),
-                ('TOPPADDING', (0,0), (-1,-1), 16),
-            ]))
-            elements.append(header_table)
-
-            # Horizontal line under the header
-            line_data = [['']]
-            line_table = Table(line_data, colWidths=[7*inch])
-            line_table.setStyle(TableStyle([
-                ('LINEBELOW', (0, 0), (-1, 0), 1, line_color),
-            ]))
-            elements.append(Spacer(1, 5))
-            elements.append(line_table)
-
-        elements.append(Spacer(1, 12))
-
-        # ---------------------------------------------------
-        # Two-column content
-        # ---------------------------------------------------
-        left_elements = []
+        # Creative Purple theme styles
+        purple_styles = getSampleStyleSheet()
         
-        # Photo handling - move to left column
-        if photo_data:
-            try:
-                if photo_data.startswith('data:image'):
-                    header, encoded = photo_data.split(',', 1)
-                    img_data = base64.b64decode(encoded)
-                    pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
-                else:
-                    pil_image = Image.open(photo_data).convert('RGBA')
+        # Left column styles (white text on purple background)
+        left_heading_style = ParagraphStyle(
+            'LeftHeadingStyle',
+            parent=purple_styles['Heading2'],
+            fontSize=12,
+            leading=14,
+            textColor=colors.HexColor('#FFFFFF'),
+            spaceAfter=5
+        )
+        left_body_style = ParagraphStyle(
+            'LeftBodyStyle',
+            parent=purple_styles['Normal'],
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor('#FFFFFF')
+        )
+        left_name_style = ParagraphStyle(
+            'LeftNameStyle',
+            parent=purple_styles['Heading1'],
+            fontSize=16,
+            leading=20,
+            textColor=colors.HexColor('#FFFFFF'),
+            alignment=1,  # Center alignment
+            spaceAfter=6
+        )
 
-                pil_image = round_corners(pil_image, 40)
+        # Right column styles
+        right_name_style = ParagraphStyle(
+            'RightNameStyle',
+            parent=purple_styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor('#000000'),
+            spaceAfter=4
+        )
+        right_title_style = ParagraphStyle(
+            'RightTitleStyle',
+            parent=purple_styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#555555'),
+            spaceAfter=6
+        )
+        right_body_style = ParagraphStyle(
+            'RightBodyStyle',
+            parent=purple_styles['Normal'],
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor('#333333'),
+        )
+        right_section_heading = ParagraphStyle(
+            'RightSectionHeading',
+            parent=purple_styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#4B0082'),  # Purple accent
+            spaceBefore=12,
+            spaceAfter=6
+        )
+        right_info_style = ParagraphStyle(
+            'RightInfoStyle',
+            parent=purple_styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#777777')
+        )
 
-                # Reduce image size
-                max_size = inch  # Reduced from 1.3 * inch
-                width, height = pil_image.size
-                aspect_ratio = width / float(height)
+        # Modern Blue theme styles
+        blue_styles = getSampleStyleSheet()
+        
+        # Define colors
+        primary_blue = colors.HexColor('#1E88E5')  # Main blue color
+        dark_blue = colors.HexColor('#1565C0')     # Darker blue for accents
+        light_blue = colors.HexColor('#E3F2FD')    # Light blue for backgrounds
+        
+        # Header styles
+        blue_name_style = ParagraphStyle(
+            'BlueNameStyle',
+            parent=blue_styles['Heading1'],
+            fontSize=24,
+            leading=28,
+            textColor=dark_blue,
+            spaceAfter=6
+        )
+        blue_title_style = ParagraphStyle(
+            'BlueTitleStyle',
+            parent=blue_styles['Heading2'],
+            fontSize=14,
+            textColor=primary_blue,
+            spaceAfter=12
+        )
+        blue_contact_style = ParagraphStyle(
+            'BlueContactStyle',
+            parent=blue_styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#555555'),
+            leading=12
+        )
+        
+        # Section styles
+        blue_section_heading = ParagraphStyle(
+            'BlueSectionHeading',
+            parent=blue_styles['Heading2'],
+            fontSize=16,
+            textColor=dark_blue,
+            spaceBefore=15,
+            spaceAfter=8,
+            borderColor=primary_blue,
+            borderWidth=1,
+            borderPadding=5,
+            borderRadius=3
+        )
+        blue_body_style = ParagraphStyle(
+            'BlueBodyStyle',
+            parent=blue_styles['Normal'],
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor('#333333')
+        )
+        blue_info_style = ParagraphStyle(
+            'BlueInfoStyle',
+            parent=blue_styles['Normal'],
+            fontSize=9,
+            textColor=primary_blue
+        )
 
-                if aspect_ratio > 1:
-                    new_width = max_size
-                    new_height = max_size / aspect_ratio
-                else:
-                    new_height = max_size
-                    new_width = max_size * aspect_ratio
+        selected_theme = theme or ""
+        print(f"Selected theme: {selected_theme}")  # Debug log
 
-                buf = io.BytesIO()
-                pil_image.save(buf, format='PNG')
-                buf.seek(0)
+        try:
+            if selected_theme == "modern-blue":
+                # Header with blue accent
+                header_content = []
+                if name:
+                    header_content.append(Paragraph(name, blue_name_style))
+                if job_title:
+                    header_content.append(Paragraph(job_title, blue_title_style))
 
-                rl_img = RLImage(buf, width=new_width, height=new_height)
-                img_table = Table([[rl_img]], colWidths=[2*inch])
-                img_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                # Contact info with modern layout
+                contact_items = []
+                if city: contact_items.append(city)
+                if phone: contact_items.append(phone)
+                if email: contact_items.append(email)
+                if contact_items:
+                    contact_str = " | ".join(contact_items)
+                    header_content.append(Paragraph(contact_str, blue_contact_style))
+
+                header_table = Table([[header_content]], colWidths=[7*inch])
+                header_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), light_blue),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 20),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+                    ('TOPPADDING', (0, 0), (-1, -1), 20),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+                ]))
+                elements.append(header_table)
+                elements.append(Spacer(1, 20))
+
+                # Two-column layout
+                left_elements = []
+                right_elements = []
+
+                # Profile Photo (if available)
+                if photo_data:
+                    try:
+                        if photo_data.startswith('data:image'):
+                            _, encoded = photo_data.split(',', 1)
+                            img_data = base64.b64decode(encoded)
+                            pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
+                        else:
+                            pil_image = Image.open(photo_data).convert('RGBA')
+
+                        pil_image = round_corners(pil_image, radius=40)
+
+                        max_size = 1.2 * inch  # Reduced from 1.5 inch
+                        w, h = pil_image.size
+                        aspect_ratio = w / float(h)
+                        if aspect_ratio > 1:
+                            new_w = max_size
+                            new_h = max_size / aspect_ratio
+                        else:
+                            new_h = max_size
+                            new_w = max_size * aspect_ratio
+
+                        buf = io.BytesIO()
+                        pil_image.save(buf, format='PNG')
+                        buf.seek(0)
+                        profile_img = RLImage(buf, width=new_w, height=new_h)
+
+                        img_table = Table([[profile_img]], colWidths=[2*inch])
+                        img_table.setStyle(TableStyle([
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ]))
+                        left_elements.append(img_table)
+                        left_elements.append(Spacer(1, 15))
+                    except Exception as e:
+                        print("Error loading photo:", e)
+
+                # Summary / Profile
+                if summary_text.strip():
+                    left_elements.append(Paragraph("Profile", blue_section_heading))
+                    left_elements.append(Paragraph(summary_text, blue_body_style))
+                    left_elements.append(Spacer(1, 15))
+
+                # Skills
+                if skills_list:
+                    left_elements.append(Paragraph("Skills", blue_section_heading))
+                    for s in skills_list:
+                        skill_line = s.get('skill', '')
+                        proficiency = s.get('proficiency', '')
+                        if proficiency:
+                            skill_line += f" ({proficiency})"
+                        left_elements.append(Paragraph("• " + skill_line, blue_body_style))
+                    left_elements.append(Spacer(1, 15))
+
+                # Languages
+                if languages:
+                    left_elements.append(Paragraph("Languages", blue_section_heading))
+                    for lang in languages:
+                        lang_name = lang.get('language', '')
+                        prof = lang.get('proficiency', '')
+                        left_elements.append(Paragraph(f"• {lang_name} - {prof}", blue_body_style))
+                    left_elements.append(Spacer(1, 15))
+
+                # Experience
+                if experiences:
+                    right_elements.append(Paragraph("Experience", blue_section_heading))
+                    for exp in experiences:
+                        pos = exp.get('position', '')
+                        comp = exp.get('company', '')
+                        sd = exp.get('start_date', '')
+                        is_current = exp.get('is_current', False)
+                        ed = 'Present' if is_current else exp.get('end_date', '')
+                        desc = exp.get('description', '')
+
+                        right_elements.append(Paragraph(f"<b>{pos}</b>", blue_body_style))
+                        right_elements.append(Paragraph(comp, blue_info_style))
+                        right_elements.append(Paragraph(f"{sd} - {ed}", blue_info_style))
+                        if desc.strip():
+                            right_elements.append(Paragraph(desc, blue_body_style))
+                        right_elements.append(Spacer(1, 10))
+
+                # Education
+                if educations:
+                    right_elements.append(Paragraph("Education", blue_section_heading))
+                    for edu in educations:
+                        deg = edu.get('degree', '')
+                        inst = edu.get('institution', '')
+                        sd = edu.get('start_date', '')
+                        is_cur = edu.get('is_current', False)
+                        ed = 'Present' if is_cur else edu.get('end_date', '')
+                        dsc = edu.get('description', '')
+
+                        right_elements.append(Paragraph(f"<b>{deg}</b>", blue_body_style))
+                        right_elements.append(Paragraph(inst, blue_info_style))
+                        right_elements.append(Paragraph(f"{sd} - {ed}", blue_info_style))
+                        if dsc.strip():
+                            right_elements.append(Paragraph(dsc, blue_body_style))
+                        right_elements.append(Spacer(1, 10))
+
+                # Projects
+                if projects:
+                    right_elements.append(Paragraph("Projects", blue_section_heading))
+                    for proj in projects:
+                        proj_name = proj.get('name', '')
+                        description = proj.get('description', '')
+                        link = proj.get('link', '')
+
+                        right_elements.append(Paragraph(f"<b>{proj_name}</b>", blue_body_style))
+                        if link:
+                            right_elements.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", blue_info_style))
+                        if description.strip():
+                            right_elements.append(Paragraph(description, blue_body_style))
+                        right_elements.append(Spacer(1, 10))
+
+                # Certifications
+                if certifications:
+                    right_elements.append(Paragraph("Certifications", blue_section_heading))
+                    for cert in certifications:
+                        ctitle = cert.get('title', '')
+                        issuer = cert.get('issuer', '')
+                        cdate = cert.get('date', '')
+
+                        right_elements.append(Paragraph(f"<b>{ctitle}</b>", blue_body_style))
+                        right_elements.append(Paragraph(f"Issuer: {issuer}", blue_info_style))
+                        right_elements.append(Paragraph(f"Date: {cdate}", blue_info_style))
+                        right_elements.append(Spacer(1, 10))
+
+                # Create two-column layout
+                content_table = Table([[left_elements, right_elements]], colWidths=[2.8*inch, 4.4*inch])  # Adjusted from [3*inch, 4*inch]
+                content_table.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 10),    # Reduced from 15
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),   # Reduced from 15
+                    ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),  # Reduced line width from 1
+                ]))
+                elements.append(content_table)
+
+            elif selected_theme == "creative-purple":
+                # Create left column flowables
+                left_col_flowables = []
+
+                # Profile Photo
+                if photo_data:
+                    try:
+                        if photo_data.startswith('data:image'):
+                            _, encoded = photo_data.split(',', 1)
+                            img_data = base64.b64decode(encoded)
+                            pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
+                        else:
+                            pil_image = Image.open(photo_data).convert('RGBA')
+
+                        pil_image = round_corners(pil_image, radius=40)
+
+                        max_size = 1.2 * inch  # Reduced from 1.5 inch
+                        w, h = pil_image.size
+                        aspect_ratio = w / float(h)
+                        if aspect_ratio > 1:
+                            new_w = max_size
+                            new_h = max_size / aspect_ratio
+                        else:
+                            new_h = max_size
+                            new_w = max_size * aspect_ratio
+
+                        buf = io.BytesIO()
+                        pil_image.save(buf, format='PNG')
+                        buf.seek(0)
+                        profile_img = RLImage(buf, width=new_w, height=new_h)
+
+                        left_col_flowables.append(profile_img)
+                        left_col_flowables.append(Spacer(1, 10))
+                    except Exception as e:
+                        print("Error loading photo:", e)
+
+                # Summary / Profile
+                if summary_text.strip():
+                    left_col_flowables.append(Paragraph("PROFILE", left_heading_style))
+                    left_col_flowables.append(Paragraph(summary_text, left_body_style))
+                    left_col_flowables.append(Spacer(1, 10))
+
+                # Skills
+                if skills_list:
+                    left_col_flowables.append(Paragraph("SKILLS", left_heading_style))
+                    for s in skills_list:
+                        skill_line = s.get('skill', '')
+                        proficiency = s.get('proficiency', '')
+                        if proficiency:
+                            skill_line += f" ({proficiency})"
+                        left_col_flowables.append(Paragraph("• " + skill_line, left_body_style))
+                    left_col_flowables.append(Spacer(1, 10))
+
+                # Languages
+                if languages:
+                    left_col_flowables.append(Paragraph("LANGUAGES", left_heading_style))
+                    for lang in languages:
+                        lang_name = lang.get('language', '')
+                        prof = lang.get('proficiency', '')
+                        left_col_flowables.append(Paragraph(f"• {lang_name} - {prof}", left_body_style))
+                    left_col_flowables.append(Spacer(1, 10))
+
+                # Create left column table with purple background
+                left_table = Table([[flow] for flow in left_col_flowables], colWidths=[2.4 * inch])
+                left_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#4B0082')),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                    ('TOPPADDING', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                ]))
+
+                # Create right column flowables
+                right_col_flowables = []
+
+                # Name & Job Title
+                if name:
+                    right_col_flowables.append(Paragraph(name, right_name_style))
+                if job_title:
+                    right_col_flowables.append(Paragraph(job_title, right_title_style))
+
+                # Contact Info
+                contact_items = []
+                if city: contact_items.append(city)
+                if phone: contact_items.append(phone)
+                if email: contact_items.append(email)
+                if contact_items:
+                    contact_str = " | ".join(contact_items)
+                    right_col_flowables.append(Paragraph(contact_str, right_body_style))
+                    right_col_flowables.append(Spacer(1, 8))
+
+                # Experience
+                if experiences:
+                    right_col_flowables.append(Paragraph("Experience", right_section_heading))
+                    for exp in experiences:
+                        pos = exp.get('position', '')
+                        comp = exp.get('company', '')
+                        sd = exp.get('start_date', '')
+                        is_current = exp.get('is_current', False)
+                        ed = 'Present' if is_current else exp.get('end_date', '')
+                        desc = exp.get('description', '')
+
+                        right_col_flowables.append(Paragraph(f"<b>{pos}</b> - {comp}", right_body_style))
+                        date_info = f"{sd} - {ed}"
+                        right_col_flowables.append(Paragraph(date_info, right_info_style))
+                        if desc.strip():
+                            right_col_flowables.append(Paragraph(desc, right_body_style))
+                        right_col_flowables.append(Spacer(1, 10))
+
+                # Education
+                if educations:
+                    right_col_flowables.append(Paragraph("Education", right_section_heading))
+                    for edu in educations:
+                        deg = edu.get('degree', '')
+                        inst = edu.get('institution', '')
+                        sd = edu.get('start_date', '')
+                        is_cur = edu.get('is_current', False)
+                        ed = 'Present' if is_cur else edu.get('end_date', '')
+                        dsc = edu.get('description', '')
+
+                        right_col_flowables.append(Paragraph(f"<b>{deg}</b> - {inst}", right_body_style))
+                        date_info = f"{sd} - {ed}"
+                        right_col_flowables.append(Paragraph(date_info, right_info_style))
+                        if dsc.strip():
+                            right_col_flowables.append(Paragraph(dsc, right_body_style))
+                        right_col_flowables.append(Spacer(1, 10))
+
+                # Projects
+                if projects:
+                    right_col_flowables.append(Paragraph("Projects", right_section_heading))
+                    for proj in projects:
+                        proj_name = proj.get('name', '')
+                        description = proj.get('description', '')
+                        link = proj.get('link', '')
+
+                        right_col_flowables.append(Paragraph(f"<b>{proj_name}</b>", right_body_style))
+                        if link:
+                            right_col_flowables.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", right_body_style))
+                        if description.strip():
+                            right_col_flowables.append(Paragraph(description, right_body_style))
+                        right_col_flowables.append(Spacer(1, 10))
+
+                # Certifications
+                if certifications:
+                    right_col_flowables.append(Paragraph("Certifications", right_section_heading))
+                    for cert in certifications:
+                        ctitle = cert.get('title', '')
+                        issuer = cert.get('issuer', '')
+                        cdate = cert.get('date', '')
+
+                        right_col_flowables.append(Paragraph(f"<b>{ctitle}</b>", right_body_style))
+                        right_col_flowables.append(Paragraph(f"Issuer: {issuer}", right_body_style))
+                        right_col_flowables.append(Paragraph(f"Date: {cdate}", right_body_style))
+                        right_col_flowables.append(Spacer(1, 10))
+
+                # Combine into a two-column table
+                main_table = Table([
+                    [left_table, right_col_flowables]
+                ], colWidths=[2.4 * inch, 4.2 * inch])
+                main_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ]))
-                left_elements.append(img_table)
-                left_elements.append(Spacer(1, 10))
-            except Exception as e:
-                print("Error loading photo:", e)
 
-        # Profile summary
-        if summary_text.strip():
-            left_elements.append(Paragraph(resume.summary_title, section_heading_style))
-            left_elements.append(Paragraph(summary_text, body_style))
-            left_elements.append(Spacer(1, 12))
+                elements.append(main_table)
 
-        # Skills
-        if skills_list:
-            left_elements.append(Paragraph(resume.skills_title, section_heading_style))
-            for s in skills_list:
-                skill_line = s.get('skill', '')
-                proficiency = s.get('proficiency')
-                if proficiency:
-                    skill_line += f" ({proficiency})"
-                left_elements.append(Paragraph("• " + skill_line, body_style))
-            left_elements.append(Spacer(1, 12))
+            elif selected_theme == "elegant-dark":
+                # Header with dark theme
+                header_content = []
+                header_content.append(Paragraph(name.upper(), name_style_dark))
+                if job_title:
+                    header_content.append(Paragraph(job_title, title_style_dark))
 
-        # Languages
-        if languages:
-            left_elements.append(Paragraph(resume.languages_title, section_heading_style))
-            for lang in languages:
-                lang_name = lang.get('language', '')
-                proficiency = lang.get('proficiency', '')
-                if lang_name and proficiency:
-                    left_elements.append(Paragraph(f"• {lang_name} - {proficiency}", body_style))
-            left_elements.append(Spacer(1, 12))
+                # Contact info with dark theme
+                contact_items = []
+                if city: contact_items.append(city)
+                if phone: contact_items.append(phone)
+                if email: contact_items.append(email)
+                if contact_items:
+                    contact_str = " | ".join(contact_items)
+                    header_content.append(Paragraph(contact_str, contact_style_dark))
 
-        # Right column content
-        right_elements = []
+                # Create dark header table
+                header_dark = Table([[header_content]], colWidths=[7*inch])
+                header_dark.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#333333')),
+                    ('LEFTPADDING', (0,0), (-1,-1), 20),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 20),
+                    ('TOPPADDING', (0,0), (-1,-1), 16),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 16),
+                ]))
+                elements.append(header_dark)
+                elements.append(Spacer(1, 20))
 
-        # Experience
-        if experiences:
-            right_elements.append(Paragraph(resume.experience_title, section_heading_style))
-            for exp in experiences:
-                position = exp.get('position', '')
-                company = exp.get('company', '')
-                start_date = exp.get('start_date', '')
-                is_current = exp.get('is_current', False)
-                end_date = 'Present' if is_current else exp.get('end_date', '')
-                desc = exp.get('description', '')
+                # Two-column layout
+                left_elements = []
+                right_elements = []
 
-                right_elements.append(Paragraph(f"<b>{position}</b> - {company}", body_style))
-                date_info = f"{start_date} - {end_date}"
-                right_elements.append(Paragraph(date_info, info_style))
-                if desc.strip():
-                    right_elements.append(Paragraph(desc, body_style))
-                right_elements.append(Spacer(1, 10))
+                # Profile Photo
+                if photo_data:
+                    try:
+                        if photo_data.startswith('data:image'):
+                            _, encoded = photo_data.split(',', 1)
+                            img_data = base64.b64decode(encoded)
+                            pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
+                        else:
+                            pil_image = Image.open(photo_data).convert('RGBA')
 
-        # Education
-        if educations:
-            right_elements.append(Paragraph(resume.education_title, section_heading_style))
-            for edu in educations:
-                deg = edu.get('degree', '')
-                inst = edu.get('institution', '')
-                sd = edu.get('start_date', '')
-                is_current = edu.get('is_current', False)
-                ed = 'Present' if is_current else edu.get('end_date', '')
-                dsc = edu.get('description', '')
+                        pil_image = round_corners(pil_image, radius=40)
 
-                right_elements.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style))
-                date_info = f"{sd} - {ed}"
-                right_elements.append(Paragraph(date_info, info_style))
-                if dsc.strip():
-                    right_elements.append(Paragraph(dsc, body_style))
-                right_elements.append(Spacer(1, 10))
+                        max_size = 1.2 * inch  # Reduced from 1.5 inch
+                        w, h = pil_image.size
+                        aspect_ratio = w / float(h)
+                        if aspect_ratio > 1:
+                            new_w = max_size
+                            new_h = max_size / aspect_ratio
+                        else:
+                            new_h = max_size
+                            new_w = max_size * aspect_ratio
 
-        # Projects
-        if projects:
-            right_elements.append(Paragraph(resume.projects_title, section_heading_style))
-            for proj in projects:
-                proj_name = proj.get('name', '')
-                description = proj.get('description', '')
-                link = proj.get('link', '')
+                        buf = io.BytesIO()
+                        pil_image.save(buf, format='PNG')
+                        buf.seek(0)
+                        profile_img = RLImage(buf, width=new_w, height=new_h)
 
-                right_elements.append(Paragraph(f"<b>{proj_name}</b>", body_style))
-                if link:
-                    right_elements.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", body_style))
-                if description.strip():
-                    right_elements.append(Paragraph(description, body_style))
-                right_elements.append(Spacer(1, 10))
+                        img_table = Table([[profile_img]], colWidths=[2*inch])
+                        img_table.setStyle(TableStyle([
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ]))
+                        left_elements.append(img_table)
+                        left_elements.append(Spacer(1, 15))
+                    except Exception as e:
+                        print("Error loading photo:", e)
 
-        # Certifications
-        if certifications:
-            right_elements.append(Paragraph(resume.certifications_title, section_heading_style))
-            for cert in certifications:
-                title = cert.get('title', '')
-                issuer = cert.get('issuer', '')
-                cdate = cert.get('date', '')
+                # Summary / Profile
+                if summary_text.strip():
+                    left_elements.append(Paragraph("Profile", section_heading_style_dark))
+                    left_elements.append(Paragraph(summary_text, body_style_dark))
+                    left_elements.append(Spacer(1, 15))
 
-                right_elements.append(Paragraph(f"<b>{title}</b>", body_style))
-                right_elements.append(Paragraph(f"Issuer: {issuer}", body_style))
-                right_elements.append(Paragraph(f"Date: {cdate}", body_style))
-                right_elements.append(Spacer(1, 10))
+                # Skills
+                if skills_list:
+                    left_elements.append(Paragraph("Skills", section_heading_style_dark))
+                    for s in skills_list:
+                        skill_line = s.get('skill', '')
+                        proficiency = s.get('proficiency', '')
+                        if proficiency:
+                            skill_line += f" ({proficiency})"
+                        left_elements.append(Paragraph("• " + skill_line, body_style_dark))
+                    left_elements.append(Spacer(1, 15))
 
-        # Create the two-column layout
-        content = []
-        current_row = [[], []]  # Left and right columns for current row
-        
-        # Helper function to add content to table
-        def add_to_table(elements, column_index):
-            for element in elements:
-                current_row[column_index].append(element)
-        
-        # Create a frame for the content
-        frame_width = doc.width
-        frame_height = doc.height - 50  # Leave some space for margins
-        
-        # Add left column content
-        add_to_table(left_elements, 0)
-        # Add right column content
-        add_to_table(right_elements, 1)
+                # Languages
+                if languages:
+                    left_elements.append(Paragraph("Languages", section_heading_style_dark))
+                    for lang in languages:
+                        lang_name = lang.get('language', '')
+                        prof = lang.get('proficiency', '')
+                        left_elements.append(Paragraph(f"• {lang_name} - {prof}", body_style_dark))
+                    left_elements.append(Spacer(1, 15))
 
-        # After adding content to columns
-        # Create table with current content
-        if current_row[0] or current_row[1]:
-            # Make sure both columns have the same number of elements
-            max_len = max(len(current_row[0]), len(current_row[1]))
-            while len(current_row[0]) < max_len:
-                current_row[0].append(Spacer(1, 1))
-            while len(current_row[1]) < max_len:
-                current_row[1].append(Spacer(1, 1))
-            
-            # Create tables for each row to allow better splitting
-            for i in range(0, max_len, 10):  # Process 10 elements at a time
-                chunk_left = current_row[0][i:i+10]
-                chunk_right = current_row[1][i:i+10]
-                
-                if chunk_left or chunk_right:
-                    table = Table([[chunk_left, chunk_right]], colWidths=[2.5*inch, 5*inch])
-                    table.setStyle(TableStyle([
-                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                        ('LEFTPADDING', (0,0), (-1,-1), 12),
-                        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-                        ('LINEBEFORE', (1,0), (1,-1), 1, vertical_line_color),
-                        ('SPLITLONGWORDS', (0,0), (-1,-1), True),
-                        ('SPACESHRINKAGE', (0,0), (-1,-1), 0.8),
-                    ]))
-                    elements.append(table)
-                    if i + 10 < max_len:  # Don't add space after the last chunk
-                        elements.append(Spacer(1, 6))  # Add some space between chunks
+                # Experience
+                if experiences:
+                    right_elements.append(Paragraph("Experience", section_heading_style_dark))
+                    for exp in experiences:
+                        pos = exp.get('position', '')
+                        comp = exp.get('company', '')
+                        sd = exp.get('start_date', '')
+                        is_current = exp.get('is_current', False)
+                        ed = 'Present' if is_current else exp.get('end_date', '')
+                        desc = exp.get('description', '')
+
+                        right_elements.append(Paragraph(f"<b>{pos}</b> - {comp}", body_style_dark))
+                        right_elements.append(Paragraph(f"{sd} - {ed}", info_style_dark))
+                        if desc.strip():
+                            right_elements.append(Paragraph(desc, body_style_dark))
+                        right_elements.append(Spacer(1, 10))
+
+                # Education
+                if educations:
+                    right_elements.append(Paragraph("Education", section_heading_style_dark))
+                    for edu in educations:
+                        deg = edu.get('degree', '')
+                        inst = edu.get('institution', '')
+                        sd = edu.get('start_date', '')
+                        is_cur = edu.get('is_current', False)
+                        ed = 'Present' if is_cur else edu.get('end_date', '')
+                        dsc = edu.get('description', '')
+
+                        right_elements.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style_dark))
+                        right_elements.append(Paragraph(f"{sd} - {ed}", info_style_dark))
+                        if dsc.strip():
+                            right_elements.append(Paragraph(dsc, body_style_dark))
+                        right_elements.append(Spacer(1, 10))
+
+                # Projects
+                if projects:
+                    right_elements.append(Paragraph("Projects", section_heading_style_dark))
+                    for proj in projects:
+                        proj_name = proj.get('name', '')
+                        description = proj.get('description', '')
+                        link = proj.get('link', '')
+
+                        right_elements.append(Paragraph(f"<b>{proj_name}</b>", body_style_dark))
+                        if link:
+                            right_elements.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", info_style_dark))
+                        if description.strip():
+                            right_elements.append(Paragraph(description, body_style_dark))
+                        right_elements.append(Spacer(1, 10))
+
+                # Certifications
+                if certifications:
+                    right_elements.append(Paragraph("Certifications", section_heading_style_dark))
+                    for cert in certifications:
+                        ctitle = cert.get('title', '')
+                        issuer = cert.get('issuer', '')
+                        cdate = cert.get('date', '')
+
+                        right_elements.append(Paragraph(f"<b>{ctitle}</b>", body_style_dark))
+                        right_elements.append(Paragraph(f"Issuer: {issuer}", info_style_dark))
+                        right_elements.append(Paragraph(f"Date: {cdate}", info_style_dark))
+                        right_elements.append(Spacer(1, 10))
+
+                # Create two-column layout
+                content_table = Table([[left_elements, right_elements]], colWidths=[3*inch, 4*inch])
+                content_table.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+                ]))
+                elements.append(content_table)
+
+            else:
+                # Default header
+                header_left = []
+                header_left.append(Paragraph(name, name_style_default))
+                header_left.append(Paragraph(job_title, title_style_default))
+
+                header_right = []
+                if city:
+                    header_right.append(Paragraph(city, contact_style_default))
+                if phone:
+                    header_right.append(Paragraph(phone, contact_style_default))
+                if email:
+                    header_right.append(Paragraph(email, contact_style_default))
+
+                header_table_data = [[header_left, header_right]]
+                header_table = Table(header_table_data, colWidths=[3.5*inch, 3.5*inch])
+                header_table.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                    ('LEFTPADDING', (0,0), (-1,-1), 20),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 20),
+                    ('TOPPADDING', (0,0), (-1,-1), 16),
+                ]))
+                elements.append(header_table)
+
+                # Horizontal line under the header
+                line_data = [['']]
+                line_table = Table(line_data, colWidths=[7*inch])
+                line_table.setStyle(TableStyle([
+                    ('LINEBELOW', (0, 0), (-1, 0), 1, line_color),
+                ]))
+                elements.append(Spacer(1, 5))
+                elements.append(line_table)
+                elements.append(Spacer(1, 12))
+
+                # Two-column layout
+                left_elements = []
+                right_elements = []
+
+                # Profile Photo
+                if photo_data:
+                    try:
+                        if photo_data.startswith('data:image'):
+                            _, encoded = photo_data.split(',', 1)
+                            img_data = base64.b64decode(encoded)
+                            pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
+                        else:
+                            pil_image = Image.open(photo_data).convert('RGBA')
+
+                        pil_image = round_corners(pil_image, radius=40)
+
+                        max_size = 1.2 * inch  # Reduced from 1.5 inch
+                        w, h = pil_image.size
+                        aspect_ratio = w / float(h)
+                        if aspect_ratio > 1:
+                            new_w = max_size
+                            new_h = max_size / aspect_ratio
+                        else:
+                            new_h = max_size
+                            new_w = max_size * aspect_ratio
+
+                        buf = io.BytesIO()
+                        pil_image.save(buf, format='PNG')
+                        buf.seek(0)
+                        profile_img = RLImage(buf, width=new_w, height=new_h)
+
+                        img_table = Table([[profile_img]], colWidths=[2*inch])
+                        img_table.setStyle(TableStyle([
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ]))
+                        left_elements.append(img_table)
+                        left_elements.append(Spacer(1, 15))
+                    except Exception as e:
+                        print("Error loading photo:", e)
+
+                # Summary / Profile
+                if summary_text.strip():
+                    left_elements.append(Paragraph("Profile", section_heading_style_default))
+                    left_elements.append(Paragraph(summary_text, body_style_default))
+                    left_elements.append(Spacer(1, 15))
+
+                # Skills
+                if skills_list:
+                    left_elements.append(Paragraph("Skills", section_heading_style_default))
+                    for s in skills_list:
+                        skill_line = s.get('skill', '')
+                        proficiency = s.get('proficiency', '')
+                        if proficiency:
+                            skill_line += f" ({proficiency})"
+                        left_elements.append(Paragraph("• " + skill_line, body_style_default))
+                    left_elements.append(Spacer(1, 15))
+
+                # Languages
+                if languages:
+                    left_elements.append(Paragraph("Languages", section_heading_style_default))
+                    for lang in languages:
+                        lang_name = lang.get('language', '')
+                        prof = lang.get('proficiency', '')
+                        left_elements.append(Paragraph(f"• {lang_name} - {prof}", body_style_default))
+                    left_elements.append(Spacer(1, 15))
+
+                # Experience
+                if experiences:
+                    right_elements.append(Paragraph("Experience", section_heading_style_default))
+                    for exp in experiences:
+                        pos = exp.get('position', '')
+                        comp = exp.get('company', '')
+                        sd = exp.get('start_date', '')
+                        is_current = exp.get('is_current', False)
+                        ed = 'Present' if is_current else exp.get('end_date', '')
+                        desc = exp.get('description', '')
+
+                        right_elements.append(Paragraph(f"<b>{pos}</b> - {comp}", body_style_default))
+                        right_elements.append(Paragraph(f"{sd} - {ed}", info_style_default))
+                        if desc.strip():
+                            right_elements.append(Paragraph(desc, body_style_default))
+                        right_elements.append(Spacer(1, 10))
+
+                # Education
+                if educations:
+                    right_elements.append(Paragraph("Education", section_heading_style_default))
+                    for edu in educations:
+                        deg = edu.get('degree', '')
+                        inst = edu.get('institution', '')
+                        sd = edu.get('start_date', '')
+                        is_cur = edu.get('is_current', False)
+                        ed = 'Present' if is_cur else edu.get('end_date', '')
+                        dsc = edu.get('description', '')
+
+                        right_elements.append(Paragraph(f"<b>{deg}</b> - {inst}", body_style_default))
+                        right_elements.append(Paragraph(f"{sd} - {ed}", info_style_default))
+                        if dsc.strip():
+                            right_elements.append(Paragraph(dsc, body_style_default))
+                        right_elements.append(Spacer(1, 10))
+
+                # Projects
+                if projects:
+                    right_elements.append(Paragraph("Projects", section_heading_style_default))
+                    for proj in projects:
+                        proj_name = proj.get('name', '')
+                        description = proj.get('description', '')
+                        link = proj.get('link', '')
+
+                        right_elements.append(Paragraph(f"<b>{proj_name}</b>", body_style_default))
+                        if link:
+                            right_elements.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", info_style_default))
+                        if description.strip():
+                            right_elements.append(Paragraph(description, body_style_default))
+                        right_elements.append(Spacer(1, 10))
+
+                # Certifications
+                if certifications:
+                    right_elements.append(Paragraph("Certifications", section_heading_style_default))
+                    for cert in certifications:
+                        ctitle = cert.get('title', '')
+                        issuer = cert.get('issuer', '')
+                        cdate = cert.get('date', '')
+
+                        right_elements.append(Paragraph(f"<b>{ctitle}</b>", body_style_default))
+                        right_elements.append(Paragraph(f"Issuer: {issuer}", info_style_default))
+                        right_elements.append(Paragraph(f"Date: {cdate}", info_style_default))
+                        right_elements.append(Spacer(1, 10))
+
+                # Create two-column layout
+                content_table = Table([[left_elements, right_elements]], colWidths=[2.8*inch, 4.4*inch])  # Adjusted from [3*inch, 4*inch]
+                content_table.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 10),    # Reduced from 15
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),   # Reduced from 15
+                    ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),  # Reduced line width from 1
+                ]))
+                elements.append(content_table)
+
+        except Exception as e:
+            print(f"Error building PDF document: {e}")
+            if os.path.exists(filename):
+                os.remove(filename)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating PDF: {str(e)}"
+            )
 
         try:
             # Build the PDF with allowSplitting=True
-            doc.build(elements, canvasmaker=NumberedCanvas)
+            if selected_theme == "elegant-dark":
+                doc.build(elements, canvasmaker=NumberedCanvas)
+            else:
+                # Only use vertical line for non-dark themes
+                doc.build(
+                    elements,
+                    canvasmaker=NumberedCanvas,
+                    onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
+                    onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
+                )
         except Exception as e:
-            print("Error building PDF:", e)
+            print(f"Error building PDF elements: {e}")
+            if os.path.exists(filename):
+                os.remove(filename)
             raise HTTPException(
                 status_code=500,
                 detail=f"Error generating PDF: {str(e)}"
@@ -715,8 +1320,12 @@ async def download_resume_pdf(
 
         # Cleanup temp file
         def cleanup():
-            if os.path.exists(filename):
-                os.remove(filename)
+            try:
+                if os.path.exists(filename):
+                    os.remove(filename)
+            except Exception as e:
+                print(f"Error cleaning up temp file: {e}")
+
         background_tasks.add_task(cleanup)
 
         return FileResponse(
@@ -724,9 +1333,11 @@ async def download_resume_pdf(
             media_type='application/pdf',
             filename=f"{name.replace(' ', '_')}_{selected_theme or 'default'}_{datetime.now().strftime('%Y%m%d')}.pdf"
         )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        if os.path.exists(filename):
-            os.remove(filename)
+        print(f"Outer error in PDF generation: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Error generating PDF: {str(e)}"
