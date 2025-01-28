@@ -74,6 +74,8 @@ export class AuthService {
     // Handle 401 Unauthorized errors
     handleAuthError(): void {
         console.log('Handling auth error');
-        this.logout();
+        localStorage.removeItem(this.tokenKey);
+        this.isAuthenticatedSubject.next(false);
+        this.router.navigate(['/login']);
     }
 }

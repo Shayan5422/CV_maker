@@ -48,6 +48,7 @@ from PIL import Image, ImageDraw
 import base64
 
 from reportlab.pdfgen import canvas
+import math
 
 Base.metadata.create_all(bind=engine)
 
@@ -222,12 +223,14 @@ def round_corners(image, radius=40):
 
 
 def draw_vertical_line(canvas, doc, line_color=colors.HexColor('#AAAAAA')):
+    """Draw a vertical line for the two-column layout"""
+    height = doc.pagesize[1]  # Get page height
+    x = 2.7 * inch  # Position for vertical line (adjust based on your column width)
     
-    try:
-        pass
-    except Exception as e:
-        pass
-        # Don't raise the error, just log it and continue
+    # Draw line from top to bottom of page
+    canvas.setStrokeColor(line_color)
+    canvas.setLineWidth(0.5)
+    canvas.line(x, 30, x, height - 30)
 
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -312,16 +315,127 @@ async def download_resume_pdf(
             certifications = []
             languages = []
 
-        # Create the PDF document
+        def estimate_content_height():
+            # Base height for header and margins (in points)
+            total_height = 50  # Start with minimal base height
+            
+            # Calculate text heights based on font size and line spacing
+            def calc_text_height(text, font_size, line_spacing=1.2):
+                if not text:
+                    return 0
+                # Estimate lines needed (assume ~60 chars per line)
+                chars_per_line = 60
+                lines = max(1, len(text) / chars_per_line)
+                return (font_size * line_spacing) * lines
+
+            # Header section
+            if name:
+                total_height += 24
+            if job_title:
+                total_height += 16
+            if any([city, phone, email]):
+                total_height += 12
+
+            # Photo if present
+            if photo_data:
+                total_height += 1.2 * 72
+
+            # Calculate height for each section
+            if experiences:
+                total_height += 20
+                for exp in experiences:
+                    total_height += 16
+                    total_height += 12
+                    desc = exp.get('description', '')
+                    total_height += calc_text_height(desc, 10)
+                    total_height += 8
+
+            if educations:
+                total_height += 20
+                for edu in educations:
+                    total_height += 16
+                    total_height += 12
+                    desc = edu.get('description', '')
+                    total_height += calc_text_height(desc, 10)
+                    total_height += 8
+
+            if skills_list:
+                total_height += 20
+                total_height += len(skills_list) * 12
+
+            if projects:
+                total_height += 20
+                for proj in projects:
+                    total_height += 16
+                    desc = proj.get('description', '')
+                    total_height += calc_text_height(desc, 10)
+                    if proj.get('link'):
+                        total_height += 12
+                    total_height += 8
+
+            if certifications:
+                total_height += 20
+                total_height += len(certifications) * 36
+
+            if languages:
+                total_height += 20
+                total_height += len(languages) * 12
+
+            # Add minimal padding
+            total_height += 30
+
+            # Convert to mm for more precise calculation
+            total_height_mm = total_height * 0.352778
+            
+            # Round up to nearest 10mm
+            total_height_mm = math.ceil(total_height_mm / 10) * 10
+            
+            # Convert back to points and add extra space for safety
+            total_height = (total_height_mm / 0.352778) + 50
+            
+            return total_height
+
+        # Calculate the required page height
+        page_height = max(estimate_content_height() * 1.5, A4[1])  # Increase estimated height by 50%
+
+        # Create custom page size with calculated height
+        custom_page_size = (A4[0], page_height)
+
+        # Create the PDF document with custom settings
         doc = SimpleDocTemplate(
             filename,
-            pagesize=A4,
-            rightMargin=0*mm,      # Reduced from 15mm
-            leftMargin=0*mm,       # Reduced from 15mm
-            topMargin=0*mm,       # Reduced from 15mm
-            bottomMargin=0*mm,    # Reduced from 15mm
-            allowSplitting=1
+            pagesize=custom_page_size,
+            rightMargin=15*mm,
+            leftMargin=15*mm,
+            topMargin=15*mm,
+            bottomMargin=15*mm,
+            allowSplitting=0,  # Disable page splitting
+            displayDocTitle=True,
+            pageCompression=0,  # Disable page compression
+            showBoundary=0,  # Hide page boundaries
         )
+
+        # Create a basic template for single page
+        frame = Frame(
+            doc.leftMargin, 
+            doc.bottomMargin,
+            doc.width,
+            doc.height,
+            leftPadding=0,
+            rightPadding=0,
+            topPadding=0,
+            bottomPadding=0,
+            showBoundary=0,
+            id='normal'
+        )
+
+        # Create a template that uses the frame
+        template = PageTemplate(
+            id='OneCol',
+            frames=[frame],
+            onPage=lambda canvas, doc: None  # Remove any page decorations
+        )
+        doc.addPageTemplates([template])
 
         # Get the default styles from ReportLab
         styles = getSampleStyleSheet()
@@ -329,241 +443,17 @@ async def download_resume_pdf(
         # Define common colors
         line_color = colors.HexColor('#999999')
         vertical_line_color = colors.HexColor('#AAAAAA')
+        light_blue = colors.HexColor('#E3F2FD')
+        primary_blue = colors.HexColor('#1E88E5')
+        dark_blue = colors.HexColor('#1565C0')
 
-        # Define styles for default theme with improved spacing
-        name_style_default = ParagraphStyle(
-            'name_style_default',
-            parent=styles['Normal'],
-            fontSize=24,
-            leading=26,        # Reduced from 28
-            textColor=colors.HexColor('#333333'),
-            spaceAfter=4       # Reduced from 6
-        )
-
-        title_style_default = ParagraphStyle(
-            'title_style_default',
-            parent=styles['Normal'],
-            fontSize=16,
-            leading=18,        # Reduced from 20
-            textColor=colors.HexColor('#666666'),
-            spaceAfter=8       # Reduced from 12
-        )
-
-        contact_style_default = ParagraphStyle(
-            'contact_style_default',
-            parent=styles['Normal'],
-            fontSize=10,        # Reduced from 12
-            leading=12,         # Reduced from 14
-            alignment=TA_RIGHT,
-            textColor=colors.HexColor('#666666')
-        )
-
-        section_heading_style_default = ParagraphStyle(
-            'section_heading_style_default',
-            parent=styles['Normal'],
-            fontSize=14,        # Reduced from 16
-            leading=16,         # Reduced from 20
-            textColor=colors.HexColor('#333333'),
-            spaceBefore=4,      # Reduced from 6
-            spaceAfter=6,       # Reduced from 8
-            bold=True
-        )
-
-        body_style_default = ParagraphStyle(
-            'body_style_default',
-            parent=styles['Normal'],
-            fontSize=10,        # Reduced from 12
-            leading=12,         # Reduced from 14
-            textColor=colors.HexColor('#333333'),
-            spaceAfter=4        # Reduced from 6
-        )
-
-        info_style_default = ParagraphStyle(
-            'info_style_default',
-            parent=styles['Normal'],
-            fontSize=9,         # Reduced from 11
-            leading=11,         # Reduced from 13
-            textColor=colors.HexColor('#666666'),
-            spaceAfter=4        # Reduced from 6
-        )
-
-        # Start building the PDF
+        # Initialize elements list for all themes
         elements = []
 
-        # Default (light) styles
-        default_styles = getSampleStyleSheet()
-
-        name_style_default = ParagraphStyle(
-            'NameStyleDefault',
-            parent=default_styles['Heading1'],
-            fontSize=18,
-            leading=22,
-            textColor=colors.HexColor('#333333'),
-            spaceAfter=6
-        )
-        title_style_default = ParagraphStyle(
-            'TitleStyleDefault',
-            parent=default_styles['Heading2'],
-            fontSize=12,
-            textColor=colors.HexColor('#666666'),
-            spaceAfter=10
-        )
-        contact_style_default = ParagraphStyle(
-            'ContactStyleDefault',
-            parent=default_styles['Normal'],
-            fontSize=10,
-            textColor=colors.HexColor('#555555'),
-            leading=12
-        )
-        section_heading_style_default = ParagraphStyle(
-            'SectionHeadingDefault',
-            parent=default_styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#222222'),
-            spaceBefore=10,
-            spaceAfter=4
-        )
-        body_style_default = ParagraphStyle(
-            'BodyStyleDefault',
-            parent=default_styles['Normal'],
-            fontSize=10,
-            leading=12,
-            textColor=colors.HexColor('#333333')
-        )
-        info_style_default = ParagraphStyle(
-            'InfoStyleDefault',
-            parent=default_styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor('#777777')
-        )
-
-        # Dark theme styles
-        dark_styles = getSampleStyleSheet()
-        name_style_dark = ParagraphStyle(
-            'NameStyleDark',
-            parent=dark_styles['Heading1'],
-            fontSize=20,
-            leading=24,
-            textColor=colors.HexColor('#FFFFFF'),
-            spaceAfter=6
-        )
-        title_style_dark = ParagraphStyle(
-            'TitleStyleDark',
-            parent=dark_styles['Heading2'],
-            fontSize=12,
-            textColor=colors.HexColor('#DDDDDD'),
-            spaceAfter=4
-        )
-        contact_style_dark = ParagraphStyle(
-            'ContactStyleDark',
-            parent=dark_styles['Normal'],
-            fontSize=10,
-            textColor=colors.HexColor('#EEEEEE'),
-            leading=12
-        )
-        section_heading_style_dark = ParagraphStyle(
-            'SectionHeadingDark',
-            parent=dark_styles['Heading2'],
-            fontSize=12,
-            textColor=colors.HexColor('#333333'),
-            backColor=colors.HexColor('#F0F0F0'),
-            spaceBefore=8,
-            spaceAfter=6,
-            leftIndent=4,
-            rightIndent=4
-        )
-        body_style_dark = ParagraphStyle(
-            'BodyStyleDark',
-            parent=dark_styles['Normal'],
-            fontSize=10,
-            leading=14,
-            textColor=colors.HexColor('#444444')
-        )
-        info_style_dark = ParagraphStyle(
-            'InfoStyleDark',
-            parent=dark_styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor('#555555')
-        )
-
-        # Creative Purple theme styles
-        purple_styles = getSampleStyleSheet()
-        
-        # Left column styles (white text on purple background)
-        left_heading_style = ParagraphStyle(
-            'LeftHeadingStyle',
-            parent=purple_styles['Heading2'],
-            fontSize=12,
-            leading=14,
-            textColor=colors.HexColor('#FFFFFF'),
-            spaceAfter=5
-        )
-        left_body_style = ParagraphStyle(
-            'LeftBodyStyle',
-            parent=purple_styles['Normal'],
-            fontSize=10,
-            leading=12,
-            textColor=colors.HexColor('#FFFFFF')
-        )
-        left_name_style = ParagraphStyle(
-            'LeftNameStyle',
-            parent=purple_styles['Heading1'],
-            fontSize=16,
-            leading=20,
-            textColor=colors.HexColor('#FFFFFF'),
-            alignment=1,  # Center alignment
-            spaceAfter=6
-        )
-
-        # Right column styles
-        right_name_style = ParagraphStyle(
-            'RightNameStyle',
-            parent=purple_styles['Heading1'],
-            fontSize=18,
-            textColor=colors.HexColor('#000000'),
-            spaceAfter=4
-        )
-        right_title_style = ParagraphStyle(
-            'RightTitleStyle',
-            parent=purple_styles['Heading2'],
-            fontSize=12,
-            textColor=colors.HexColor('#555555'),
-            spaceAfter=6
-        )
-        right_body_style = ParagraphStyle(
-            'RightBodyStyle',
-            parent=purple_styles['Normal'],
-            fontSize=10,
-            leading=14,
-            textColor=colors.HexColor('#333333'),
-        )
-        right_section_heading = ParagraphStyle(
-            'RightSectionHeading',
-            parent=purple_styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#4B0082'),  # Purple accent
-            spaceBefore=12,
-            spaceAfter=6
-        )
-        right_info_style = ParagraphStyle(
-            'RightInfoStyle',
-            parent=purple_styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor('#777777')
-        )
-
         # Modern Blue theme styles
-        blue_styles = getSampleStyleSheet()
-        
-        # Define colors
-        primary_blue = colors.HexColor('#1E88E5')  # Main blue color
-        dark_blue = colors.HexColor('#1565C0')     # Darker blue for accents
-        light_blue = colors.HexColor('#E3F2FD')    # Light blue for backgrounds
-        
-        # Header styles
         blue_name_style = ParagraphStyle(
             'BlueNameStyle',
-            parent=blue_styles['Heading1'],
+            parent=styles['Heading1'],
             fontSize=24,
             leading=28,
             textColor=dark_blue,
@@ -571,23 +461,21 @@ async def download_resume_pdf(
         )
         blue_title_style = ParagraphStyle(
             'BlueTitleStyle',
-            parent=blue_styles['Heading2'],
+            parent=styles['Heading2'],
             fontSize=14,
             textColor=primary_blue,
             spaceAfter=12
         )
         blue_contact_style = ParagraphStyle(
             'BlueContactStyle',
-            parent=blue_styles['Normal'],
+            parent=styles['Normal'],
             fontSize=10,
             textColor=colors.HexColor('#555555'),
             leading=12
         )
-        
-        # Section styles
         blue_section_heading = ParagraphStyle(
             'BlueSectionHeading',
-            parent=blue_styles['Heading2'],
+            parent=styles['Heading2'],
             fontSize=16,
             textColor=dark_blue,
             spaceBefore=15,
@@ -599,16 +487,125 @@ async def download_resume_pdf(
         )
         blue_body_style = ParagraphStyle(
             'BlueBodyStyle',
-            parent=blue_styles['Normal'],
+            parent=styles['Normal'],
             fontSize=10,
             leading=14,
             textColor=colors.HexColor('#333333')
         )
         blue_info_style = ParagraphStyle(
             'BlueInfoStyle',
-            parent=blue_styles['Normal'],
+            parent=styles['Normal'],
             fontSize=9,
             textColor=primary_blue
+        )
+
+        # Elegant Dark theme styles
+        name_style_dark = ParagraphStyle(
+            'NameStyleDark',
+            parent=styles['Heading1'],
+            fontSize=20,
+            leading=24,
+            textColor=colors.HexColor('#FFFFFF'),
+            spaceAfter=6
+        )
+        title_style_dark = ParagraphStyle(
+            'TitleStyleDark',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#DDDDDD'),
+            spaceAfter=4
+        )
+        contact_style_dark = ParagraphStyle(
+            'ContactStyleDark',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#EEEEEE'),
+            leading=12
+        )
+        section_heading_style_dark = ParagraphStyle(
+            'SectionHeadingDark',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#333333'),
+            backColor=colors.HexColor('#F0F0F0'),
+            spaceBefore=8,
+            spaceAfter=6,
+            leftIndent=4,
+            rightIndent=4
+        )
+        body_style_dark = ParagraphStyle(
+            'BodyStyleDark',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor('#444444')
+        )
+        info_style_dark = ParagraphStyle(
+            'InfoStyleDark',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#555555')
+        )
+
+        # Creative Purple theme styles
+        left_heading_style = ParagraphStyle(
+            'LeftHeadingStyle',
+            parent=styles['Heading2'],
+            fontSize=12,
+            leading=14,
+            textColor=colors.HexColor('#FFFFFF'),
+            spaceAfter=5
+        )
+        left_body_style = ParagraphStyle(
+            'LeftBodyStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor('#FFFFFF')
+        )
+        left_name_style = ParagraphStyle(
+            'LeftNameStyle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            leading=20,
+            textColor=colors.HexColor('#FFFFFF'),
+            alignment=1,  # Center alignment
+            spaceAfter=6
+        )
+        right_name_style = ParagraphStyle(
+            'RightNameStyle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor('#000000'),
+            spaceAfter=4
+        )
+        right_title_style = ParagraphStyle(
+            'RightTitleStyle',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#555555'),
+            spaceAfter=6
+        )
+        right_body_style = ParagraphStyle(
+            'RightBodyStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor('#333333')
+        )
+        right_section_heading = ParagraphStyle(
+            'RightSectionHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#4B0082'),  # Purple accent
+            spaceBefore=12,
+            spaceAfter=6
+        )
+        right_info_style = ParagraphStyle(
+            'RightInfoStyle',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#777777')
         )
 
         selected_theme = theme or ""
@@ -616,14 +613,14 @@ async def download_resume_pdf(
 
         try:
             if selected_theme == "modern-blue":
-                # Header with blue accent
+                # Create header
                 header_content = []
                 if name:
                     header_content.append(Paragraph(name, blue_name_style))
                 if job_title:
                     header_content.append(Paragraph(job_title, blue_title_style))
 
-                # Contact info with modern layout
+                # Contact info
                 contact_items = []
                 if city: contact_items.append(city)
                 if phone: contact_items.append(phone)
@@ -632,7 +629,8 @@ async def download_resume_pdf(
                     contact_str = " | ".join(contact_items)
                     header_content.append(Paragraph(contact_str, blue_contact_style))
 
-                header_table = Table([[header_content]], colWidths=[8.3*inch])
+                # Create header table
+                header_table = Table([[header_content]], colWidths=[doc.width])
                 header_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, -1), light_blue),
                     ('LEFTPADDING', (0, 0), (-1, -1), 10),
@@ -643,9 +641,9 @@ async def download_resume_pdf(
                 elements.append(header_table)
                 elements.append(Spacer(1, 20))
 
-                # Two-column layout
-                left_elements = []
-                right_elements = []
+                # Create content columns
+                left_column = []
+                right_column = []
 
                 # Profile Photo (if available)
                 if photo_data:
@@ -658,8 +656,8 @@ async def download_resume_pdf(
                             pil_image = Image.open(photo_data).convert('RGBA')
 
                         pil_image = round_corners(pil_image, radius=40)
-
-                        max_size = 1.2 * inch  # Reduced from 1.5 inch
+                        
+                        max_size = 1.2 * inch
                         w, h = pil_image.size
                         aspect_ratio = w / float(h)
                         if aspect_ratio > 1:
@@ -673,46 +671,42 @@ async def download_resume_pdf(
                         pil_image.save(buf, format='PNG')
                         buf.seek(0)
                         profile_img = RLImage(buf, width=new_w, height=new_h)
-
-                        img_table = Table([[profile_img]], colWidths=[2*inch])
-                        img_table.setStyle(TableStyle([
-                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                        ]))
-                        left_elements.append(img_table)
-                        left_elements.append(Spacer(1, 15))
+                        
+                        left_column.append(profile_img)
+                        left_column.append(Spacer(1, 15))
                     except Exception as e:
                         print("Error loading photo:", e)
 
+                # Add other content to columns
                 # Summary / Profile
                 if summary_text.strip():
-                    left_elements.append(Paragraph("Profile", blue_section_heading))
-                    left_elements.append(Paragraph(summary_text, blue_body_style))
-                    left_elements.append(Spacer(1, 15))
+                    left_column.append(Paragraph("Profile", blue_section_heading))
+                    left_column.append(Paragraph(summary_text, blue_body_style))
+                    left_column.append(Spacer(1, 15))
 
                 # Skills
                 if skills_list:
-                    left_elements.append(Paragraph("Skills", blue_section_heading))
+                    left_column.append(Paragraph("Skills", blue_section_heading))
                     for s in skills_list:
                         skill_line = s.get('skill', '')
                         proficiency = s.get('proficiency', '')
                         if proficiency:
                             skill_line += f" ({proficiency})"
-                        left_elements.append(Paragraph("• " + skill_line, blue_body_style))
-                    left_elements.append(Spacer(1, 15))
+                        left_column.append(Paragraph("• " + skill_line, blue_body_style))
+                    left_column.append(Spacer(1, 15))
 
                 # Languages
                 if languages:
-                    left_elements.append(Paragraph("Languages", blue_section_heading))
+                    left_column.append(Paragraph("Languages", blue_section_heading))
                     for lang in languages:
                         lang_name = lang.get('language', '')
                         prof = lang.get('proficiency', '')
-                        left_elements.append(Paragraph(f"• {lang_name} - {prof}", blue_body_style))
-                    left_elements.append(Spacer(1, 15))
+                        left_column.append(Paragraph(f"• {lang_name} - {prof}", blue_body_style))
+                    left_column.append(Spacer(1, 15))
 
                 # Experience
                 if experiences:
-                    right_elements.append(Paragraph("Experience", blue_section_heading))
+                    right_column.append(Paragraph("Experience", blue_section_heading))
                     for exp in experiences:
                         pos = exp.get('position', '')
                         comp = exp.get('company', '')
@@ -721,16 +715,16 @@ async def download_resume_pdf(
                         ed = 'Present' if is_current else exp.get('end_date', '')
                         desc = exp.get('description', '')
 
-                        right_elements.append(Paragraph(f"<b>{pos}</b>", blue_body_style))
-                        right_elements.append(Paragraph(comp, blue_info_style))
-                        right_elements.append(Paragraph(f"{sd} - {ed}", blue_info_style))
+                        right_column.append(Paragraph(f"<b>{pos}</b>", blue_body_style))
+                        right_column.append(Paragraph(comp, blue_info_style))
+                        right_column.append(Paragraph(f"{sd} - {ed}", blue_info_style))
                         if desc.strip():
-                            right_elements.append(Paragraph(desc, blue_body_style))
-                        right_elements.append(Spacer(1, 10))
+                            right_column.append(Paragraph(desc, blue_body_style))
+                        right_column.append(Spacer(1, 10))
 
                 # Education
                 if educations:
-                    right_elements.append(Paragraph("Education", blue_section_heading))
+                    right_column.append(Paragraph("Education", blue_section_heading))
                     for edu in educations:
                         deg = edu.get('degree', '')
                         inst = edu.get('institution', '')
@@ -739,49 +733,52 @@ async def download_resume_pdf(
                         ed = 'Present' if is_cur else edu.get('end_date', '')
                         dsc = edu.get('description', '')
 
-                        right_elements.append(Paragraph(f"<b>{deg}</b>", blue_body_style))
-                        right_elements.append(Paragraph(inst, blue_info_style))
-                        right_elements.append(Paragraph(f"{sd} - {ed}", blue_info_style))
+                        right_column.append(Paragraph(f"<b>{deg}</b>", blue_body_style))
+                        right_column.append(Paragraph(inst, blue_info_style))
+                        right_column.append(Paragraph(f"{sd} - {ed}", blue_info_style))
                         if dsc.strip():
-                            right_elements.append(Paragraph(dsc, blue_body_style))
-                        right_elements.append(Spacer(1, 10))
+                            right_column.append(Paragraph(dsc, blue_body_style))
+                        right_column.append(Spacer(1, 10))
 
                 # Projects
                 if projects:
-                    right_elements.append(Paragraph("Projects", blue_section_heading))
+                    right_column.append(Paragraph("Projects", blue_section_heading))
                     for proj in projects:
                         proj_name = proj.get('name', '')
                         description = proj.get('description', '')
                         link = proj.get('link', '')
 
-                        right_elements.append(Paragraph(f"<b>{proj_name}</b>", blue_body_style))
+                        right_column.append(Paragraph(f"<b>{proj_name}</b>", blue_body_style))
                         if link:
-                            right_elements.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", blue_info_style))
+                            right_column.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", blue_info_style))
                         if description.strip():
-                            right_elements.append(Paragraph(description, blue_body_style))
-                        right_elements.append(Spacer(1, 10))
+                            right_column.append(Paragraph(description, blue_body_style))
+                        right_column.append(Spacer(1, 10))
 
                 # Certifications
                 if certifications:
-                    right_elements.append(Paragraph("Certifications", blue_section_heading))
+                    right_column.append(Paragraph("Certifications", blue_section_heading))
                     for cert in certifications:
                         ctitle = cert.get('title', '')
                         issuer = cert.get('issuer', '')
                         cdate = cert.get('date', '')
 
-                        right_elements.append(Paragraph(f"<b>{ctitle}</b>", blue_body_style))
-                        right_elements.append(Paragraph(f"Issuer: {issuer}", blue_info_style))
-                        right_elements.append(Paragraph(f"Date: {cdate}", blue_info_style))
-                        right_elements.append(Spacer(1, 10))
+                        right_column.append(Paragraph(f"<b>{ctitle}</b>", blue_body_style))
+                        right_column.append(Paragraph(f"Issuer: {issuer}", blue_info_style))
+                        right_column.append(Paragraph(f"Date: {cdate}", blue_info_style))
+                        right_column.append(Spacer(1, 10))
 
-                # Create two-column layout
-                content_table = Table([[left_elements, right_elements]], colWidths=[2.8*inch, 5.4*inch])  # Adjusted from [3*inch, 4*inch]
-                content_table.setStyle(TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 20),    # Reduced from 15 000000
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 20),   # Reduced from 15
-                    ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),  # Reduced line width from 1
-                ]))
+                # Create content table
+                content_table = Table(
+                    [[left_column, right_column]], 
+                    colWidths=[doc.width * 0.35, doc.width * 0.65],
+                    style=TableStyle([
+                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 20),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+                        ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),
+                    ])
+                )
                 elements.append(content_table)
 
             elif selected_theme == "creative-purple":
@@ -847,7 +844,9 @@ async def download_resume_pdf(
                     left_col_flowables.append(Spacer(1, 10))
 
                 # Create left column table with purple background
-                left_table = Table([[flow] for flow in left_col_flowables], colWidths=[2.2 * inch])  # Reduced from 2.4 inch
+                left_table = Table([[flow] for flow in left_col_flowables], 
+                                 colWidths=[2.2 * inch],
+                                 splitByRow=True)  # Enable splitting
                 left_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#4B0082')),
                     ('LEFTPADDING', (0, 0), (-1, -1), 20),     # Reduced from 15
@@ -970,7 +969,7 @@ async def download_resume_pdf(
                     header_content.append(Paragraph(contact_str, contact_style_dark))
 
                 # Create dark header table
-                header_dark = Table([[header_content]], colWidths=[8.3*inch])
+                header_dark = Table([[header_content]], colWidths=[8.3*inch], splitByRow=True)
                 header_dark.setStyle(TableStyle([
                     ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#333333')),
                     ('LEFTPADDING', (0,0), (-1,-1), 20),
@@ -1046,7 +1045,7 @@ async def download_resume_pdf(
                         lang_name = lang.get('language', '')
                         prof = lang.get('proficiency', '')
                         left_elements.append(Paragraph(f"• {lang_name} - {prof}", body_style_dark))
-                    left_elements.append(Spacer(1, 15))
+                        left_elements.append(Spacer(1, 15))
 
                 # Experience
                 if experiences:
@@ -1110,8 +1109,10 @@ async def download_resume_pdf(
                         right_elements.append(Paragraph(f"Date: {cdate}", info_style_dark))
                         right_elements.append(Spacer(1, 10))
 
-                # Create two-column layout
-                content_table = Table([[left_elements, right_elements]], colWidths=[2.7*inch, 5.3*inch])
+                # Create content table with splitting enabled
+                content_table = Table([[left_elements, right_elements]], 
+                                    colWidths=[2.7*inch, 5.3*inch],
+                                    splitByRow=True)  # Enable splitting
                 content_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('LEFTPADDING', (0, 0), (-1, -1), 15),   # Reduced from 20 sdsdsdsd
@@ -1134,7 +1135,7 @@ async def download_resume_pdf(
                     header_right.append(Paragraph(email, contact_style_default))
 
                 header_table_data = [[header_left, header_right]]
-                header_table = Table(header_table_data, colWidths=[2.7*inch, 5.6*inch])
+                header_table = Table(header_table_data, colWidths=[2.7*inch, 5.6*inch], splitByRow=True)
                 header_table.setStyle(TableStyle([
                     ('VALIGN', (0,0), (-1,-1), 'TOP'),
                     ('LEFTPADDING', (0,0), (-1,-1), 20),
@@ -1218,7 +1219,7 @@ async def download_resume_pdf(
                         lang_name = lang.get('language', '')
                         prof = lang.get('proficiency', '')
                         left_elements.append(Paragraph(f"• {lang_name} - {prof}", body_style_default))
-                    left_elements.append(Spacer(1, 15))
+                        left_elements.append(Spacer(1, 15))
 
                 # Experience
                 if experiences:
@@ -1282,8 +1283,10 @@ async def download_resume_pdf(
                         right_elements.append(Paragraph(f"Date: {cdate}", info_style_default))
                         right_elements.append(Spacer(1, 10))
 
-                # Create two-column layout
-                content_table = Table([[left_elements, right_elements]], colWidths=[2.3*inch, 5.7*inch])  # Adjusted from [3*inch, 4*inch]
+                # Create content table with splitting enabled
+                content_table = Table([[left_elements, right_elements]], 
+                                    colWidths=[2.3*inch, 5.7*inch],
+                                    splitByRow=True)  # Enable splitting
                 content_table.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('LEFTPADDING', (0, 0), (-1, -1), 0),    # Reduced from 15
@@ -1301,18 +1304,10 @@ async def download_resume_pdf(
                 detail=f"Error generating PDF: {str(e)}"
             )
 
+        # Build the PDF without page numbers
         try:
-            # Build the PDF with allowSplitting=True
-            if selected_theme == "elegant-dark":
-                doc.build(elements, canvasmaker=NumberedCanvas)
-            else:
-                # Only use vertical line for non-dark themes
-                doc.build(
-                    elements,
-                    canvasmaker=NumberedCanvas,
-                    onFirstPage=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA')),
-                    onLaterPages=lambda canvas, doc: draw_vertical_line(canvas, doc, colors.HexColor('#AAAAAA'))
-                )
+            # Build the document
+            doc.build(elements)
         except Exception as e:
             print(f"Error building PDF elements: {e}")
             if os.path.exists(filename):

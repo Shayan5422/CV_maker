@@ -37,6 +37,8 @@ export class ResumeListComponent implements OnInit {
   }
 
   loadResumes(): void {
+    if (this.loading) return; // Prevent multiple simultaneous requests
+    
     this.loading = true;
     this.error = '';
     this.resumeService.getResumes().subscribe({
@@ -45,6 +47,11 @@ export class ResumeListComponent implements OnInit {
         this.loading = false;
       },
       error: (error) => {
+        if (error.status === 401) {
+          // Don't show error message for auth errors since they will be handled by the interceptor
+          this.loading = false;
+          return;
+        }
         this.error = 'Failed to load resumes. Please try again later.';
         console.error('Error loading resumes:', error);
         this.loading = false;

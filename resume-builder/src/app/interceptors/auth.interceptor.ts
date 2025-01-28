@@ -10,14 +10,24 @@ import {
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
+import { Router } from '@angular/router';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
-  constructor(private authService: AuthService) {}
+  private isRedirecting = false;
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    // Skip adding token for login and register endpoints
+    if (request.url.includes('/token') || request.url.includes('/register')) {
+      return next.handle(request);
+    }
+
     const token = this.authService.getToken();
-    console.log('Current token:', token);
     
     if (token) {
       request = request.clone({
@@ -25,15 +35,23 @@ export class AuthInterceptor implements HttpInterceptor {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log('Request headers:', request.headers.get('Authorization'));
     }
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
-        if (error.status === 401) {
-          console.error('401 Error - Headers:', error.headers);
-          console.error('401 Error - Message:', error.message);
-          this.authService.handleAuthError();
+        if (error.status === 401 && !this.isRedirecting) {
+          this.isRedirecting = true;
+          
+          // Clear auth state
+          localStorage.removeItem('auth_token');
+          
+          // Directly navigate to login
+          this.router.navigate(['/login']).then(() => {
+            // Reset the redirect flag after navigation is complete
+            setTimeout(() => {
+              this.isRedirecting = false;
+            }, 100);
+          });
         }
         return throwError(() => error);
       })
