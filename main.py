@@ -1326,7 +1326,10 @@ async def download_resume_pdf(
                             right_col_flowables.append(Paragraph(f"Date: {cdate}", right_body_style))
                             right_col_flowables.append(Spacer(1, 10))
 
-                    # Combine into a two-column table
+                    # Add extra space to ensure left column background extends to bottom
+                    left_col_flowables.append(Spacer(1, 200))  # Add extra space at bottom
+
+                    # Combine into a two-column table with background color
                     main_table = Table([
                         [left_table, right_col_flowables]
                     ], colWidths=[2.7 * inch, 5.6 * inch])  # Adjusted widths
@@ -1336,6 +1339,7 @@ async def download_resume_pdf(
                         ('RIGHTPADDING', (-1, 0), (-1, -1), 8), # Right column padding
                         ('TOPPADDING', (0, 0), (-1, -1), 0),
                         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4B0082')),  # Purple background for entire left column
                     ]))
 
                     elements.append(main_table)
