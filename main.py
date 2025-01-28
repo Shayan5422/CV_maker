@@ -50,10 +50,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS configuration (adjust allowed origins as needed)
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://cvmaker.pythonanywhere.com"],
+    allow_origins=["https://cvmaker.pythonanywhere.com", "http://localhost:4200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
