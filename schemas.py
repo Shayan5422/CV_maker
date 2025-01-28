@@ -1,6 +1,6 @@
 # schemas.py
-from pydantic import BaseModel, EmailStr, constr, field_validator
 from typing import Optional, List
+from pydantic import BaseModel, EmailStr, constr, validator
 from datetime import date
 import json
 
@@ -11,11 +11,18 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
+    @validator('password')
+    def password_validation(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
+
 class User(UserBase):
     id: int
+    is_active: bool = True
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # ----- Component Schemas -----
 class ExperienceItem(BaseModel):
@@ -54,82 +61,19 @@ class LanguageItem(BaseModel):
 
 # ----- Resume Schemas -----
 class ResumeBase(BaseModel):
-    title: str
-    full_name: str
-    email: EmailStr
-    phone: str  # Validate phone format
-    city: str   # Add city field
-    summary: str
-    experience: str
-    education: str
-    skills: str
-    projects: str
-    certifications: str
-    languages: str  # Add languages field
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    title: Optional[str] = None
+    city: Optional[str] = None
+    summary: Optional[str] = None
+    experience: Optional[str] = None
+    education: Optional[str] = None
+    skills: Optional[str] = None
+    projects: Optional[str] = None
+    certifications: Optional[str] = None
+    languages: Optional[str] = None
     photo: Optional[str] = None
-    # Section Titles
-    experience_title: str = "EXPERIENCE"
-    education_title: str = "EDUCATION"
-    skills_title: str = "SKILLS"
-    projects_title: str = "PROJECTS"
-    certifications_title: str = "CERTIFICATIONS"
-    languages_title: str = "LANGUAGES"
-    summary_title: str = "PROFILE"
-
-    # Validators to ensure JSON strings are valid
-    @field_validator('experience')
-    def validate_experience(cls, v):
-        try:
-            items = json.loads(v)
-            [ExperienceItem(**item) for item in items]
-            return v
-        except Exception as e:
-            raise ValueError('Invalid experience format')
-
-    @field_validator('education')
-    def validate_education(cls, v):
-        try:
-            items = json.loads(v)
-            [EducationItem(**item) for item in items]
-            return v
-        except Exception as e:
-            raise ValueError('Invalid education format')
-
-    @field_validator('skills')
-    def validate_skills(cls, v):
-        try:
-            items = json.loads(v)
-            [SkillItem(**item) for item in items]
-            return v
-        except Exception as e:
-            raise ValueError('Invalid skills format')
-
-    @field_validator('projects')
-    def validate_projects(cls, v):
-        try:
-            items = json.loads(v)
-            [ProjectItem(**item) for item in items]
-            return v
-        except Exception as e:
-            raise ValueError('Invalid projects format')
-
-    @field_validator('certifications')
-    def validate_certifications(cls, v):
-        try:
-            items = json.loads(v)
-            [CertificationItem(**item) for item in items]
-            return v
-        except Exception as e:
-            raise ValueError('Invalid certifications format')
-
-    @field_validator('languages')
-    def validate_languages(cls, v):
-        try:
-            items = json.loads(v)
-            [LanguageItem(**item) for item in items]
-            return v
-        except Exception as e:
-            raise ValueError('Invalid languages format')
 
 class ResumeCreate(ResumeBase):
     pass
@@ -137,11 +81,9 @@ class ResumeCreate(ResumeBase):
 class Resume(ResumeBase):
     id: int
     user_id: int
-    created_at: Optional[date] = None
-    updated_at: Optional[date] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
     # Helper methods for PDF generation
     def get_experience_list(self) -> List[ExperienceItem]:
