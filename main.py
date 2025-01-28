@@ -53,7 +53,7 @@ app = FastAPI()
 # CORS configuration (adjust allowed origins as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=["https://cvmaker.pythonanywhere.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1485,35 +1485,17 @@ async def download_resume_pdf(
                             right_elements.append(Paragraph(f"Date: {cdate}", info_style_dark))
                             right_elements.append(Spacer(1, 10))
 
-                    # Create a single table for both header and content
-                    main_table_data = [
-                        # Header row with dark background
-                        [Table([[cell] for cell in header_content], 
-                              colWidths=[doc.width],
-                              style=TableStyle([
-                                  ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#333333')),
-                                  ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                                  ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                                  ('TOPPADDING', (0, 0), (-1, -1), 16),
-                                  ('BOTTOMPADDING', (0, 0), (-1, -1), 16),
-                              ]))],
-                        # Content row with two columns
-                        [Table([[left_elements, right_elements]], 
-                              colWidths=[2.2*inch, 5.6*inch],
-                              style=TableStyle([
-                                  ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                                  ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                                  ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                              ]))]
-                    ]
-
-                    # Create the main table
-                    main_table = Table(main_table_data, colWidths=[doc.width])
-                    main_table.setStyle(TableStyle([
+                    # Create content table with splitting enabled
+                    content_table = Table([[left_elements, right_elements]], 
+                                        colWidths=[2.3*inch, 5.6*inch],
+                                        splitByRow=True)  # Enable splitting
+                    content_table.setStyle(TableStyle([
                         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 0),    # Reduced from 15
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 15),   # Reduced from 15
+                        ('LINEBEFORE', (1, 0), (1, -1), 0.5, vertical_line_color),  # Reduced line width from 1
                     ]))
-
-                    elements.append(main_table)
+                    elements.append(content_table)
 
                 else:
                     # Default header
