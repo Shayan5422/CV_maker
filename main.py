@@ -12,6 +12,9 @@ import models
 import schemas
 from database import SessionLocal, engine, Base
 from passlib.context import CryptContext
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 # Install required package first: pip install reportlab
 from reportlab.lib import colors
@@ -19,19 +22,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
-from fastapi.responses import FileResponse
-import json
-import io
-import os
 from fastapi import BackgroundTasks
-from fastapi.responses import FileResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 import io
-import os
 import json
 from datetime import datetime
 from reportlab.platypus import KeepTogether, FrameBreak
@@ -43,7 +40,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
-from fastapi.responses import FileResponse
 from PIL import Image, ImageDraw
 import base64
 
@@ -71,6 +67,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+# Mount the static files from the Angular build
+app.mount("/assets", StaticFiles(directory="resume-builder/dist/resume-builder/browser"), name="static")
 
 def get_db():
     db = SessionLocal()
@@ -78,7 +76,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -202,7 +199,6 @@ def delete_resume(
     db.commit()
     return {"message": "Resume deleted"}
 
-
 def round_corners(image, radius=40):
     """
     تابعی برای گرد کردن گوشه‌های تصویر پروفایل. 
@@ -220,7 +216,6 @@ def round_corners(image, radius=40):
     alpha.paste(circle.crop((radius,radius,radius*2,radius*2)), (w-radius, h-radius))
     image.putalpha(alpha)
     return image
-
 
 def draw_vertical_line(canvas, doc, line_color=colors.HexColor('#AAAAAA')):
     """Draw a vertical line for the two-column layout"""
@@ -1744,3 +1739,16 @@ def create_section(title, items, style_heading, style_body, style_info):
             elements.append(p)
         elements.append(Spacer(1, 8))
     return elements
+
+@app.get("/")
+async def serve_spa():
+    return FileResponse("resume-builder/dist/resume-builder/browser/index.html")
+
+@app.get("/{full_path:path}")
+async def serve_spa_paths(full_path: str):
+    # Check if the path is for an asset
+    static_file = f"resume-builder/dist/resume-builder/browser/{full_path}"
+    if os.path.exists(static_file):
+        return FileResponse(static_file)
+    # For all other routes, return the index.html
+    return FileResponse("resume-builder/dist/resume-builder/browser/index.html")
