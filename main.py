@@ -369,9 +369,65 @@ async def download_resume_pdf(
                 light_blue = colors.HexColor('#E3F2FD')
                 primary_blue = colors.HexColor('#1E88E5')
                 dark_blue = colors.HexColor('#1565C0')
+                
+                # Nature Green theme colors
+                nature_green = colors.HexColor('#4CAF50')  # Main green
+                light_green = colors.HexColor('#E8F5E9')  # Light green for background
+                dark_green = colors.HexColor('#2E7D32')   # Dark green for headings
+                leaf_green = colors.HexColor('#81C784')   # Accent green
 
                 # Initialize elements list
                 elements = []
+
+                # Nature Green theme styles
+                green_name_style = ParagraphStyle(
+                    'GreenNameStyle',
+                    parent=styles['Heading1'],
+                    fontSize=24,
+                    leading=28,
+                    textColor=dark_green,
+                    spaceAfter=6,
+                    fontName='Helvetica-Bold'
+                )
+                green_title_style = ParagraphStyle(
+                    'GreenTitleStyle',
+                    parent=styles['Heading2'],
+                    fontSize=14,
+                    textColor=nature_green,
+                    spaceAfter=12
+                )
+                green_contact_style = ParagraphStyle(
+                    'GreenContactStyle',
+                    parent=styles['Normal'],
+                    fontSize=10,
+                    textColor=colors.HexColor('#555555'),
+                    leading=12
+                )
+                green_section_heading = ParagraphStyle(
+                    'GreenSectionHeading',
+                    parent=styles['Heading2'],
+                    fontSize=14,
+                    textColor=dark_green,
+                    spaceBefore=12,
+                    spaceAfter=6,
+                    borderColor=leaf_green,
+                    borderWidth=0.5,
+                    borderPadding=4,
+                    borderRadius=2
+                )
+                green_body_style = ParagraphStyle(
+                    'GreenBodyStyle',
+                    parent=styles['Normal'],
+                    fontSize=10,
+                    leading=14,
+                    textColor=colors.HexColor('#333333')
+                )
+                green_info_style = ParagraphStyle(
+                    'GreenInfoStyle',
+                    parent=styles['Normal'],
+                    fontSize=9,
+                    textColor=nature_green
+                )
 
                 # Modern Blue theme styles
                 blue_name_style = ParagraphStyle(
@@ -531,7 +587,182 @@ async def download_resume_pdf(
                     textColor=colors.HexColor('#777777')
                 )
 
-                if selected_theme == "modern-blue":
+                if selected_theme == "nature-green":
+                    # Create header content
+                    header_content = []
+                    if name:
+                        header_content.append(Paragraph(name, green_name_style))
+                    if job_title:
+                        header_content.append(Paragraph(job_title, green_title_style))
+
+                    # Contact info
+                    contact_items = []
+                    if city: contact_items.append(city)
+                    if phone: contact_items.append(phone)
+                    if email: contact_items.append(email)
+                    if contact_items:
+                        contact_str = " | ".join(contact_items)
+                        header_content.append(Paragraph(contact_str, green_contact_style))
+
+                    # Create left and right columns
+                    left_column = []
+                    right_column = []
+
+                    # Profile Photo
+                    if photo_data:
+                        try:
+                            if photo_data.startswith('data:image'):
+                                _, encoded = photo_data.split(',', 1)
+                                img_data = base64.b64decode(encoded)
+                                pil_image = Image.open(io.BytesIO(img_data)).convert('RGBA')
+                            else:
+                                pil_image = Image.open(photo_data).convert('RGBA')
+
+                            pil_image = round_corners(pil_image, radius=40)
+                            
+                            max_size = 1.2 * inch
+                            w, h = pil_image.size
+                            aspect_ratio = w / float(h)
+                            if aspect_ratio > 1:
+                                new_w = max_size
+                                new_h = max_size / aspect_ratio
+                            else:
+                                new_h = max_size
+                                new_w = max_size * aspect_ratio
+
+                            buf = io.BytesIO()
+                            pil_image.save(buf, format='PNG')
+                            buf.seek(0)
+                            profile_img = RLImage(buf, width=new_w, height=new_h)
+                            
+                            left_column.append(profile_img)
+                            left_column.append(Spacer(1, 15))
+                        except Exception as e:
+                            print("Error loading photo:", e)
+
+                    # Summary / Profile
+                    if summary_text.strip():
+                        left_column.append(Paragraph("Profile", green_section_heading))
+                        left_column.append(Paragraph(summary_text, green_body_style))
+                        left_column.append(Spacer(1, 15))
+
+                    # Skills
+                    if skills_list:
+                        left_column.append(Paragraph("Skills", green_section_heading))
+                        for s in skills_list:
+                            skill_line = s.get('skill', '')
+                            proficiency = s.get('proficiency', '')
+                            if proficiency:
+                                skill_line += f" ({proficiency})"
+                            left_column.append(Paragraph("• " + skill_line, green_body_style))
+                        left_column.append(Spacer(1, 15))
+
+                    # Languages
+                    if languages:
+                        left_column.append(Paragraph("Languages", green_section_heading))
+                        for lang in languages:
+                            lang_name = lang.get('language', '')
+                            prof = lang.get('proficiency', '')
+                            left_column.append(Paragraph(f"• {lang_name} - {prof}", green_body_style))
+                        left_column.append(Spacer(1, 15))
+
+                    # Experience
+                    if experiences:
+                        right_column.append(Paragraph("Experience", green_section_heading))
+                        for exp in experiences:
+                            pos = exp.get('position', '')
+                            comp = exp.get('company', '')
+                            sd = exp.get('start_date', '')
+                            is_current = exp.get('is_current', False)
+                            ed = 'Present' if is_current else exp.get('end_date', '')
+                            desc = exp.get('description', '')
+
+                            right_column.append(Paragraph(f"<b>{pos}</b>", green_body_style))
+                            right_column.append(Paragraph(comp, green_info_style))
+                            right_column.append(Paragraph(f"{sd} - {ed}", green_info_style))
+                            if desc.strip():
+                                right_column.append(Paragraph(desc, green_body_style))
+                            right_column.append(Spacer(1, 10))
+
+                    # Education
+                    if educations:
+                        right_column.append(Paragraph("Education", green_section_heading))
+                        for edu in educations:
+                            deg = edu.get('degree', '')
+                            inst = edu.get('institution', '')
+                            sd = edu.get('start_date', '')
+                            is_cur = edu.get('is_current', False)
+                            ed = 'Present' if is_cur else edu.get('end_date', '')
+                            dsc = edu.get('description', '')
+
+                            right_column.append(Paragraph(f"<b>{deg}</b>", green_body_style))
+                            right_column.append(Paragraph(inst, green_info_style))
+                            right_column.append(Paragraph(f"{sd} - {ed}", green_info_style))
+                            if dsc.strip():
+                                right_column.append(Paragraph(dsc, green_body_style))
+                            right_column.append(Spacer(1, 10))
+
+                    # Projects
+                    if projects:
+                        right_column.append(Paragraph("Projects", green_section_heading))
+                        for proj in projects:
+                            proj_name = proj.get('name', '')
+                            description = proj.get('description', '')
+                            link = proj.get('link', '')
+
+                            right_column.append(Paragraph(f"<b>{proj_name}</b>", green_body_style))
+                            if link:
+                                right_column.append(Paragraph(f"Link: <a href='{link}'>{link}</a>", green_info_style))
+                            if description.strip():
+                                right_column.append(Paragraph(description, green_body_style))
+                            right_column.append(Spacer(1, 10))
+
+                    # Certifications
+                    if certifications:
+                        right_column.append(Paragraph("Certifications", green_section_heading))
+                        for cert in certifications:
+                            ctitle = cert.get('title', '')
+                            issuer = cert.get('issuer', '')
+                            cdate = cert.get('date', '')
+
+                            right_column.append(Paragraph(f"<b>{ctitle}</b>", green_body_style))
+                            right_column.append(Paragraph(f"Issuer: {issuer}", green_info_style))
+                            right_column.append(Paragraph(f"Date: {cdate}", green_info_style))
+                            right_column.append(Spacer(1, 10))
+
+                    # Create a single table for both header and content
+                    main_table_data = [
+                        # Header row with light green background
+                        [Table([[cell] for cell in header_content], 
+                              colWidths=[doc.width],
+                              style=TableStyle([
+                                  ('BACKGROUND', (0, 0), (-1, -1), light_green),
+                                  ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                                  ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+                                  ('TOPPADDING', (0, 0), (-1, -1), 20),
+                                  ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+                                  ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                              ]))],
+                        # Content row with two columns
+                        [Table([[left_column, right_column]], 
+                              colWidths=[doc.width * 0.35, doc.width * 0.65],
+                              style=TableStyle([
+                                  ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                                  ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                                  ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+                                  ('LINEBEFORE', (1, 0), (1, -1), 0.5, leaf_green),
+                              ]))]
+                    ]
+
+                    # Create the main table
+                    main_table = Table(main_table_data, colWidths=[doc.width])
+                    main_table.setStyle(TableStyle([
+                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ]))
+
+                    elements.append(main_table)
+
+                elif selected_theme == "modern-blue":
                     # Create a single table for all content
                     header_content = []
                     if name:
@@ -960,7 +1191,7 @@ async def download_resume_pdf(
                             lang_name = lang.get('language', '')
                             prof = lang.get('proficiency', '')
                             left_elements.append(Paragraph(f"• {lang_name} - {prof}", body_style_dark))
-                        left_elements.append(Spacer(1, 15))
+                            left_elements.append(Spacer(1, 15))
 
                     # Experience
                     if experiences:
